@@ -1,0 +1,13 @@
+CMakeLists.txt
+compile_commands.json
+build/
+*.o
+*.a
+*.so
+.cache/
+
+# MiniSocket gitignore
+src/MiniHttpRequest/include/MiniSocket.hpp
+src/MiniHttpRequest/src/MiniSocket.cpp
+src/MiniHttpRequest/src/main.cpp
+src/MiniHttpRequest/Makefile
