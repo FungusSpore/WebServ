@@ -21,11 +21,15 @@
 #define LISTEN_BACKLOG 128
 #define READ_BUFFER 2048
 
+/// Socket is to store socket fd, and which port it connected to. 
+/// Forward fd is used for server cgi data forwarding by default will be -1 and port will be left empty
 struct Socket{
 	int		fd;
+	int		forward_fd; // where to send the data to
 	std::string port;
 
 	Socket(int fd, std::string port);
+	Socket(int fd, int forward_fd);
 };
 
 class Epoll{
@@ -34,7 +38,6 @@ private:
 	std::vector<int> listen_socks;
 	int nfds, epollfd, idx;
 	void get_new_events();
-	void setnonblocking(int socket);
 
 public:
 	Epoll(const std::vector<std::string> port_list);
@@ -43,6 +46,9 @@ public:
 	~Epoll();
 	std::vector<Socket *> get_conn_sock();
 	Socket *get_conn_sock2();
+
+	int get_epollfd() const;
+	// void add_socket();
 };
 
 #endif
