@@ -1,6 +1,9 @@
 #include "../../includes/Epoll.hpp"
+#include "../../includes/Utils.hpp"
 
-Socket::Socket(int fd, std::string port):fd(fd), port(port){}
+Socket::Socket(int fd, std::string port):fd(fd), forward_fd(-1), port(port){}
+
+Socket::Socket(int fd, int forward_fd):fd(fd), forward_fd(forward_fd), port(""){}
 
 Epoll::Epoll(const std::vector<std::string> port_list):nfds(0),idx(0){
 	struct addrinfo hints, *result, *rp;
@@ -46,7 +49,7 @@ Epoll::Epoll(const std::vector<std::string> port_list):nfds(0),idx(0){
 
 		ev.events = EPOLLIN | EPOLLET;
 		ev.data.ptr = new Socket(listen_sock, *it);
-		setnonblocking(listen_sock);
+		Utils::setnonblocking(listen_sock);
 		if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1){
 			close(listen_sock);
 			throw SystemFailure("Epoll CTL failed to add listen socket");
@@ -68,19 +71,6 @@ void	Epoll::get_new_events(){
 		this->idx = 0;
 }
 
-void Epoll::setnonblocking(int socket){
-	int flags = fcntl(socket, F_GETFL, 0);
-	if (flags == -1) {
-		close(socket);
-		throw SystemFailure("Failed to get flags");
-	}
-
-	flags |= O_NONBLOCK;
-	if (fcntl(socket, F_SETFL, flags) == -1){
-		close(socket);
-		throw SystemFailure("Failed to set flags");
-	}
-}
 
 std::vector<Socket *> Epoll::get_conn_sock(){
 	std::vector<Socket *> result;
@@ -93,7 +83,7 @@ std::vector<Socket *> Epoll::get_conn_sock(){
 		if (find(listen_socks.begin(), listen_socks.end(), sock->fd) != listen_socks.end()){
 			int conn_sock = accept(sock->fd, NULL, NULL); 
 			if (conn_sock == -1) throw SystemFailure("Accept has failed");
-			setnonblocking(conn_sock);
+			Utils::setnonblocking(conn_sock);
 			struct epoll_event ev;
 			ev.events = EPOLLIN | EPOLLET;
 			ev.data.ptr = new Socket(conn_sock, sock->port);
@@ -105,6 +95,17 @@ std::vector<Socket *> Epoll::get_conn_sock(){
 	}
 	return (result);
 }
+
+int Epoll::get_epollfd() const{
+	return (this->epollfd);
+}
+// void Epoll::add_socket(int fd, std::string port){
+// 	struct epoll_event ev;
+// 	ev.events = EPOLLIN | EPOLLET;
+// 	ev.data.ptr = new Socket(conn_sock, sock->port);
+// 	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
+// 		throw SystemFailure("Epoll CTL failed to add listen socket");
+// }
 
 // IF IN THE FUTURE RETURNING 1 Socket is prefered
 
@@ -130,35 +131,35 @@ std::vector<Socket *> Epoll::get_conn_sock(){
 // 	return ((Socket *)this->events[idx++].data.ptr);
 // }
 
-#include <iostream>
-int main(){
-	try{
-		std::vector<std::string> port_list;
-		port_list.push_back("1234");
-		port_list.push_back("1235");
-		port_list.push_back("1236");
-		Epoll test(port_list);
-		char buffer[READ_BUFFER];
-
-		// Will need a outer while loop
-		for (;;){
-			std::vector<Socket *> mysocks = test.get_conn_sock();
-			for (size_t i = 0; i < mysocks.size(); i++){
-				Socket *mysock = mysocks[i];
-				while (true){
-					int size = read(mysock->fd, buffer, READ_BUFFER);
-					if (size == -1){
-						if (errno == EAGAIN || errno == EWOULDBLOCK)
-							break;
-						throw  SystemFailure("Read Failed");
-					}
-					write(mysock->fd, buffer, size);
-				}
-				close(mysock->fd);
-				delete mysock;
-			}
-		}
-	}catch (std::exception& e){
-		std::cout << e.what() << std::endl;
-	}
-}
+// #include <iostream>
+// int main(){
+// 	try{
+// 		std::vector<std::string> port_list;
+// 		port_list.push_back("1234");
+// 		port_list.push_back("1235");
+// 		port_list.push_back("1236");
+// 		Epoll test(port_list);
+// 		char buffer[READ_BUFFER];
+//
+// 		// Will need a outer while loop
+// 		for (;;){
+// 			std::vector<Socket *> mysocks = test.get_conn_sock();
+// 			for (size_t i = 0; i < mysocks.size(); i++){
+// 				Socket *mysock = mysocks[i];
+// 				while (true){
+// 					int size = read(mysock->fd, buffer, READ_BUFFER);
+// 					if (size == -1){
+// 						if (errno == EAGAIN || errno == EWOULDBLOCK)
+// 							break;
+// 						throw  SystemFailure("Read Failed");
+// 					}
+// 					write(mysock->fd, buffer, size);
+// 				}
+// 				close(mysock->fd);
+// 				delete mysock;
+// 			}
+// 		}
+// 	}catch (std::exception& e){
+// 		std::cout << e.what() << std::endl;
+// 	}
+// }
