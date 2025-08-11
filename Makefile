@@ -24,4 +24,7 @@ re: fclean all
 debug:
 	$(CC) $(SANITIZE) $(FLAGS) $(SOURCE) -o $(NAME)
 
-.PHONY: all clean fclean re debugt the winners (A), which is size 150
+jwtest:
+	c++ src/Backend/CGI.cpp src/Backend/Epoll.cpp src/Backend/Socket.cpp src/Backend/SocketRegistry.cpp src/Exceptions/Exceptions.cpp src/Utils/Utils.cpp
+
+.PHONY: all clean fclean re debug jwtest

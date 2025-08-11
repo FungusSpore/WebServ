@@ -1,9 +1,8 @@
 #include "../../includes/Epoll.hpp"
 #include "../../includes/Utils.hpp"
+#include <cstddef>
 
-Socket::Socket(int fd, std::string port):fd(fd), forward_fd(-1), port(port){}
-
-Socket::Socket(int fd, int forward_fd):fd(fd), forward_fd(forward_fd), port(""){}
+#include <fcntl.h>
 
 Epoll::Epoll(const std::vector<std::string> port_list):nfds(0),idx(0){
 	struct addrinfo hints, *result, *rp;
@@ -48,22 +47,16 @@ Epoll::Epoll(const std::vector<std::string> port_list):nfds(0),idx(0){
 		}
 
 		ev.events = EPOLLIN | EPOLLET;
-		ev.data.ptr = new Socket(listen_sock, *it);
+		ev.data.ptr = listenRegistry.makeSocket(listen_sock, *it);
 		Utils::setnonblocking(listen_sock);
 		if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1){
 			close(listen_sock);
 			throw SystemFailure("Epoll CTL failed to add listen socket");
 		}
-
-		this->listen_socks.push_back(listen_sock);
 	}
 }
 
-Epoll::~Epoll(){
-	close(this->epollfd);
-	for (size_t i = 0; i < this->listen_socks.size(); i++)
-		close(this->listen_socks.at(i));
-}
+Epoll::~Epoll(){ close(this->epollfd); }
 
 void	Epoll::get_new_events(){
 		this->nfds = epoll_wait(this->epollfd, this->events, MAX_EVENTS, -1);
@@ -80,13 +73,14 @@ std::vector<Socket *> Epoll::get_conn_sock(){
 
 	for (; idx < nfds; idx++){
 		Socket *sock = (Socket *)events[idx].data.ptr;
-		if (find(listen_socks.begin(), listen_socks.end(), sock->fd) != listen_socks.end()){
+		if (listenRegistry.searchSocket(*sock)){
 			int conn_sock = accept(sock->fd, NULL, NULL); 
 			if (conn_sock == -1) throw SystemFailure("Accept has failed");
+			std::cout << "connection socket" << std::endl;
 			Utils::setnonblocking(conn_sock);
 			struct epoll_event ev;
 			ev.events = EPOLLIN | EPOLLET;
-			ev.data.ptr = new Socket(conn_sock, sock->port);
+			ev.data.ptr = clientRegistry.makeSocket(conn_sock, sock->port);
 			if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
 				throw SystemFailure("Epoll CTL failed to add listen socket");
 		}
@@ -99,37 +93,15 @@ std::vector<Socket *> Epoll::get_conn_sock(){
 int Epoll::get_epollfd() const{
 	return (this->epollfd);
 }
-// void Epoll::add_socket(int fd, std::string port){
-// 	struct epoll_event ev;
-// 	ev.events = EPOLLIN | EPOLLET;
-// 	ev.data.ptr = new Socket(conn_sock, sock->port);
-// 	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
-// 		throw SystemFailure("Epoll CTL failed to add listen socket");
-// }
 
-// IF IN THE FUTURE RETURNING 1 Socket is prefered
+Socket* Epoll::makeClientSocket(int fd, Socket* client){
+	return clientRegistry.makeSocket(fd, client);
+}
 
-// Socket *Epoll::get_conn_sock2(){
-// 	while (true){
-// 		if (this->idx >= this->nfds)
-// 			get_new_events();
-// 		std::vector<int>::iterator it;
-// 		it = find(listen_socks.begin(), listen_socks.end(), ((Socket *)events[idx].data.ptr)->fd);
-// 		if (it == listen_socks.end()) break;
-//
-// 		// if client ip and port need fill in the NULL
-// 		int conn_sock = accept(*it, NULL, NULL); 
-// 		if (conn_sock == -1) throw SystemFailure("Accept has failed");
-// 		setnonblocking(conn_sock);
-// 		struct epoll_event ev;
-// 		ev.events = EPOLLIN | EPOLLET;
-// 		ev.data.ptr = new Socket(conn_sock, ((Socket *)this->events[idx].data.ptr)->port);
-// 		if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
-// 			throw SystemFailure("Epoll CTL failed to add listen socket");
-// 		idx++;
-// 	}
-// 	return ((Socket *)this->events[idx++].data.ptr);
-// }
+void Epoll::closeSocket(const Socket& other){
+	clientRegistry.removeSocket(other);
+}
+
 
 // #include <iostream>
 // int main(){
