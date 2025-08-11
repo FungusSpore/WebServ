@@ -271,13 +271,13 @@ void MiniHttpRequest::parseRequest() {
 	std::cout << "Parsing HTTP request from socket " << _socket_fd << std::endl;
 
 	std::string request;
-	long long contentLength = 0;
-	bool isChunked = false;
+	// long long contentLength = 0;
+	// bool isChunked = false;
 
 	loadHeader(request);
 	parseHeader(request);
-	getBodyType(isChunked, contentLength);
-	loadBody(isChunked, contentLength);
+	// getBodyType(isChunked, contentLength);
+	// loadBody(isChunked, contentLength);
 
 	std::cout << "Full HTTP request:\n" << request << std::endl;
 
@@ -289,16 +289,16 @@ void MiniHttpRequest::parseRequest() {
 
 	// after here we can do http response
 	// for now just dummy response
-	std::string response = "HTTP/1.1 200 OK\r\n"
-		"Content-Type: text/plain\r\n"
-		"Content-Length: 13\r\n"
-		"\r\n"
-		"Hello, World!";
-	if (send(_socket_fd, response.c_str(), response.size(), 0) <
-	 			0) {
-		throw std::runtime_error("Failed to send response to socket");
-	}
-	std::cout << "Response sent to client." << std::endl;
-	close(_socket_fd);
+	// std::string response = "HTTP/1.1 200 OK\r\n"
+	// 	"Content-Type: text/plain\r\n"
+	// 	"Content-Length: 13\r\n"
+	// 	"\r\n"
+	// 	"Hello, World!";
+	// if (send(_socket_fd, response.c_str(), response.size(), 0) <
+	//  			0) {
+	// 	throw std::runtime_error("Failed to send response to socket");
+	// }
+	// std::cout << "Response sent to client." << std::endl;
+	// close(_socket_fd);
 
 }

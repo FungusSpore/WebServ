@@ -27,7 +27,6 @@ public:
 	~MiniHttpRequest();
 
 	// Parses the HTTP request from the socket
-	// To-do: Modification based on serve conf and response
 	void parseRequest();
 
 	// Getters
