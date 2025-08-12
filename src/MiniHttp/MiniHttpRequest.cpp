@@ -1,5 +1,5 @@
 #include "MiniHttpRequest.hpp"
-#include "Utils.hpp"
+#include "MiniHttpUtils.hpp"
 #include <exception>
 #include <iostream>
 #include <unistd.h>

@@ -53,6 +53,7 @@ public:
 	~MiniHttpResponse();
 
 	void parseResponse();
+	std::string buildResponse();
 
 	// build a getters for the most common headers to lookup for parseResponse
 	// std::multimap<std::string, std::string>& getHeaders() {

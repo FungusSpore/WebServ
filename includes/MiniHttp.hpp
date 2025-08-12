@@ -13,14 +13,14 @@ private:
 	// MiniHttpRequest _request;
 	// MiniHttpResponse _response;
 	// MiniHttpRoute _route;
-	// int _socket_fd;
 	Socket _socket;
+	// int _socket_fd;
 	WebServer& _server;
 
-	void handleRequest();
-	void sendResponse();
+	void sendResponse(const MiniHttpResponse& response);
 public:
-	MiniHttp(int socket_fd, WebServer& server);
+	MiniHttp(Socket& socket, WebServer& server);
+	// MiniHttp(int socket_fd, WebServer& server);
 	MiniHttp(const MiniHttp& other);
 	MiniHttp& operator=(const MiniHttp& other);
 	~MiniHttp();

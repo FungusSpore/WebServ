@@ -1,11 +1,11 @@
-#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <strings.h>
 #include "MiniHttpResponse.hpp"
-#include "Utils.hpp"
+#include "MiniHttpUtils.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
+#include <vector>
 
 MiniHttpResponse::MiniHttpResponse(WebServer& server, MiniHttpRequest& request, int socket_fd)
 	: _server(server), _serverBlock(0), _locationBlock(0), _request(request), _socket_fd(socket_fd), _statusCode(-1), _statusMessage(""), _body("") {}
@@ -471,40 +471,5 @@ void MiniHttpResponse::parseResponse() {
 
 	// Set default header based on nginx
 	parseDefaultHeader();
-
-
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	// // // Parse the response based on the route and status code
-	// // if (_statusCode == -1) {
-	// // 	throw std::runtime_error("Status code not set for response");
-	// // }
-	//
-	// // // Set default headers
-	// // _headers.insert(std::make_pair("Content-Type", "text/html"));
-	// // _headers.insert(std::make_pair("Content-Length", ft_toString(_body.size())));
-	//
-	// // If the status code is an error, load the error page body
-	// if (_statusCode >= 400 && _statusCode < 600) {
-	// 	parseErrorCode();
-	// }
 }
+

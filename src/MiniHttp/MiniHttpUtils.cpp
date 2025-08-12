@@ -1,9 +1,10 @@
-#include "Utils.hpp"
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <map>
 #include <sys/stat.h>
+#include "MiniHttpUtils.hpp"
+#include <typeinfo>
 
 
 void ft_strtrim(std::string& s) {
@@ -98,11 +99,13 @@ std::string getFileContent(const std::string& path) {
 	}
 }
 
-std::string ft_toString(long int value) {
+template <typename T>
+std::string ft_toString(T value) {
 	std::ostringstream oss;
 	oss << value;
 	if (oss.fail()) {
-		throw std::runtime_error("Failed to convert long int to string");
+		std::string errorMsg = "Failed to convert value of type " + std::string(typeid(T).name()) + " to string";
+		throw std::runtime_error(errorMsg);
 	}
 	return oss.str();
 }

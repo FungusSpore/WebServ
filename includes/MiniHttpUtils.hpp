@@ -1,5 +1,5 @@
-#ifndef UTILS_HPP
-#define UTILS_HPP
+#ifndef MINIHTTPUTILS_HPP
+#define MINIHTTPUTILS_HPP
 
 #include <iostream>
 #include "WebServer.hpp"
@@ -13,7 +13,8 @@ std::string getMimeType(const std::string& extension);
 std::string getFileExtension(const std::string& filename);
 bool isMimeTypeText(const std::string& mimeType);
 std::string getFileContent(const std::string& path);
-std::string ft_toString(int value);
+template <typename T>
+std::string ft_toString(T value);
 std::string getStatusCodeMsg(int statusCode);
 std::string getCurrentTime();
 
