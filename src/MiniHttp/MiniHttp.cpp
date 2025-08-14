@@ -1,6 +1,8 @@
 #include <iostream>
 #include "MiniHttp.hpp"
+#include "Socket.hpp"
 #include <unistd.h>
+#include <sys/socket.h>
 
 MiniHttp::MiniHttp(Socket& socket, WebServer& server) : _socket(socket), _server(server) {}
 
@@ -24,13 +26,15 @@ MiniHttp::~MiniHttp() {
 	// Destructor implementation
 }
 
-void MiniHttp::sendResponse(const MiniHttpResponse& response) {
+void MiniHttp::sendResponse(MiniHttpResponse& response) {
 	try {
 		std::string httpResponse = response.buildResponse();
+
+		// here need to refactor to use passed to socket buffer
 		
 		ssize_t totalSent = 0;
 		ssize_t responseLength = httpResponse.length();
-		
+
 		while (totalSent < responseLength) {
 			ssize_t sent = send(_socket.fd, httpResponse.c_str() + totalSent, 
 							   responseLength - totalSent, 0);
@@ -50,11 +54,12 @@ void MiniHttp::sendResponse(const MiniHttpResponse& response) {
 void MiniHttp::run() {
 	try {
 
-		MiniHttpRequest request(_socket.fd);
-		request.parseRequest();
-
-		// MiniHttpRoute route(request, _server);
-		// route.parseRoute();
+		MiniHttpRequest request(_socket);
+		if (!request.parseRequest()) {
+			// maybe socket also need to edge cases where socket reading failed.
+			// Since this just going to return back to main loop if it doesnt have enough request data
+			return;
+		}
 
 		MiniHttpResponse response(_server, request, _socket.fd);
 		response.parseResponse();

@@ -1,5 +1,6 @@
 #include "MiniHttpRequest.hpp"
 #include "MiniHttpUtils.hpp"
+#include <cstddef>
 #include <exception>
 #include <iostream>
 #include <unistd.h>
@@ -7,32 +8,36 @@
 #include <sys/socket.h>
 #include <cstdlib>
 #include <sstream>
+#include "Socket.hpp"
 
-MiniHttpRequest::MiniHttpRequest(int socket_fd) : _method(""), _path(""), _version(""), _body(""), _socket_fd(socket_fd) {
-	// here maybe can start the parsing of the request
-}
+MiniHttpRequest::MiniHttpRequest(Socket& socket) 
+	: _socket(socket), _method(""), _path(""), _version(""), _body(""), _trailer("") {}
 
-MiniHttpRequest::MiniHttpRequest(const MiniHttpRequest& other) 
-	: _method(other._method), _path(other._path), _version(other._version), 
-	  _headers(other._headers), _body(other._body), _socket_fd(other._socket_fd) {
-}
+MiniHttpRequest::MiniHttpRequest(const MiniHttpRequest& other)
+	: _socket(other._socket), _method(other._method), _path(other._path), 
+	  _version(other._version), _body(other._body), _trailer(other._trailer), _headers(other._headers) {}
 
 MiniHttpRequest& MiniHttpRequest::operator=(const MiniHttpRequest& other) {
 	if (this != &other) {
+		_socket = other._socket;
 		_method = other._method;
 		_path = other._path;
 		_version = other._version;
-		_headers = other._headers;
 		_body = other._body;
-		_socket_fd = other._socket_fd;
+		_trailer = other._trailer;
+		_headers = other._headers;
 	}
 	return *this;
 }
 
 MiniHttpRequest::~MiniHttpRequest() {
-	if (_socket_fd != -1) {
-		close(_socket_fd);
-	}
+	// if (_socket_fd != -1) {
+	// 	close(_socket_fd);
+	// }
+}
+
+Socket& MiniHttpRequest::getSocket() const {
+	return _socket;
 }
 
 const std::string& MiniHttpRequest::getMethod() const {
@@ -47,65 +52,63 @@ const std::string& MiniHttpRequest::getVersion() const {
 	return _version;
 }
 
-const std::multimap<std::string, std::string>& MiniHttpRequest::getHeaders() const {
-	return _headers;
-}
-
 const std::string& MiniHttpRequest::getBody() const {
 	return _body;
 }
 
-int MiniHttpRequest::getSocketFd() const {
-	return _socket_fd;
+const std::string& MiniHttpRequest::getTrailer() const {
+	return _trailer;
 }
 
-void MiniHttpRequest::setMethod(const std::string& method) {
-	_method = method;
+const std::multimap<std::string, std::string>& MiniHttpRequest::getHeaders() const {
+	return _headers;
 }
 
-void MiniHttpRequest::setPath(const std::string& path) {
-	_path = path;
-}
-
-void MiniHttpRequest::setVersion(const std::string& version) {
-	_version = version;
-}
 
 void MiniHttpRequest::addHeader(const std::string& key, const std::string& value) {
 	_headers.insert(std::make_pair(key, value));
 }
 
-void MiniHttpRequest::setBody(const std::string& body) {
-	_body = body;
-}
-
-void MiniHttpRequest::setSocketFd(int socket_fd) {
-	_socket_fd = socket_fd;
-}
-
-void MiniHttpRequest::loadHeader(std::string& request) {
-	int bytes_read;
-	char buffer[1024] = {0};
-
-	while ((bytes_read = recv(_socket_fd, buffer, sizeof(buffer) -1, 0)) > 0) {
-		buffer[bytes_read] = '\0';
-		request.append(buffer);
-
-		if (request.find("\r\n\r\n") != std::string::npos) {
-			break;
-		}
+bool MiniHttpRequest::loadHeader() {
+	if (_buffer.find("\r\n\r\n") != std::string::npos) {
+		return true;
 	}
+	if (_socket.read_buffer.find("\r\n\r\n") == std::string::npos) {
+		_buffer += _socket.read_buffer;
+		_socket.read_buffer.erase();
+		return false;
+	}
+	_buffer += _socket.read_buffer;
+	_socket.read_buffer.erase();
+	return true;
 
-	if (bytes_read < 0)
-		throw std::runtime_error("Failed to read from socket");
-	else if (bytes_read == 0)
-		throw std::runtime_error("Connection closed by client");
-	if (request.empty())
-		throw std::runtime_error("Received empty request");
+
+
+
+
+
+	// int bytes_read;
+	// char buffer[1024] = {0};
+	//
+	// while ((bytes_read = recv(_socket_fd, buffer, sizeof(buffer) -1, 0)) > 0) {
+	// 	buffer[bytes_read] = '\0';
+	// 	request.append(buffer);
+	//
+	// 	if (request.find("\r\n\r\n") != std::string::npos) {
+	// 		break;
+	// 	}
+	// }
+
+	// if (bytes_read < 0)
+	// 	throw std::runtime_error("Failed to read from socket");
+	// else if (bytes_read == 0)
+	// 	throw std::runtime_error("Connection closed by client");
+	// if (request.empty())
+	// 	throw std::runtime_error("Received empty request");
 }
 
-void MiniHttpRequest::parseHeader(const std::string& request) {
-	std::istringstream iss(request);
+void MiniHttpRequest::parseHeader() {
+	std::istringstream iss(_buffer);
 	std::string line;
 
 	if (std::getline(iss, line)) {
@@ -113,6 +116,7 @@ void MiniHttpRequest::parseHeader(const std::string& request) {
 		methods >> _method >> _path >> _version;
 		if (_method.empty() || _path.empty() || _version.empty()) {
 			throw std::runtime_error("Invalid HTTP request line");
+			// shouldnt throw but should return error response
 		}
 	}
 
@@ -130,17 +134,25 @@ void MiniHttpRequest::parseHeader(const std::string& request) {
 			}
 			else {
 				throw std::runtime_error("Invalid header format: " + line);
+			// shouldnt throw but should return error response
 			}
 		}
 		else {
 			throw std::runtime_error("Invalid header format: " + line);
+			// shouldnt throw but should return error response
 		}
 	}
 
 	if (_headers.empty()) {
 		throw std::runtime_error("No headers found in the request");
+			// shouldnt throw but should return error response
 	}
 	// std::cout << "Parsed HTTP header." << std::endl;
+	
+	size_t pos = _buffer.find("\r\n\r\n");
+	if (pos != std::string::npos) {
+		_buffer.erase(0, pos + 4); // remove header part from buffer
+	}
 }
 
 std::string MiniHttpRequest::getHeaderValue(const std::string& key) const {
@@ -209,83 +221,78 @@ void MiniHttpRequest::parseTrailer(std::string& chunk) {
 	}
 }
 
-void MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
-	int bytes_read;
-	char buffer[1024] = {0};
+bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
+	// size_t pos = _buffer.find("\r\n\r\n");
+	// if (pos == std::string::npos) // dont really need this line because header is already checked
+	// 	throw std::runtime_error("Invalid HTTP request format: no body found");
+	// std::string temp_body = _buffer.substr(pos + 4);
 
 	if (isChunked) {
-		std::string chunk;
 		while (true) {
-			bytes_read = recv(_socket_fd, buffer, sizeof(buffer) - 1, 0);
-			if (bytes_read <= 0) {
-				throw std::runtime_error("Failed to read chunked body from socket");
+			size_t pos = _buffer.find("\r\n");
+			if (pos == std::string::npos)
+				return false;
+			std::string chunkSizeStr = _buffer.substr(0, pos);
+			long long chunkSize = std::strtoll(chunkSizeStr.c_str(), NULL, 16);
+			if (chunkSize == 0) {
+				_buffer.erase(0, pos + 2);
+				parseTrailer(_buffer);
+				return true;
 			}
-			buffer[bytes_read] = '\0';
-			chunk.append(buffer);
+			if (_buffer.size() < pos + 2 + chunkSize + 2)
+				return false;
 
-			while (true) {
-				size_t pos = chunk.find("\r\n");
-				if (pos == std::string::npos)
-					break;
-				std::string chunkSizeStr = chunk.substr(0, pos);
-				// chunk.erase(0, pos + 2);
-				long long chunkSize = std::strtoll(chunkSizeStr.c_str(), NULL, 16);
-				if (chunkSize == 0) {
-					chunk.erase(0, pos + 2);
-					parseTrailer(chunk);
-					return;
-				}
-				if (chunk.size() < pos + 2 + chunkSize + 2)
-					break;
-
-				_body.append(chunk.substr(pos + 2, chunkSize));
-				chunk.erase(0, pos + 2 + chunkSize + 2);
-			}
+			_body.append(_buffer.substr(pos + 2, chunkSize));
+			_buffer.erase(0, pos + 2 + chunkSize + 2);
 		}
 	} else if (contentLength > 0) {
-		long long bytesRead = 0;
-		while (bytesRead < contentLength) {
-			bytes_read = recv(_socket_fd, buffer, sizeof(buffer) - 1, 0);
-			if (bytes_read <= 0) {
-				throw std::runtime_error("Failed to read body from socket");
-			}
-			buffer[bytes_read] = '\0';
-			_body.append(buffer);
-			bytesRead += bytes_read;
-
-			if (bytesRead >= contentLength) {
-				break;
+		if (_body.size() < static_cast<std::size_t>(contentLength)) {
+			long long curSize = _body.size() + _buffer.size();
+			if (curSize < contentLength) {
+				_body.append(_buffer);
+				_buffer.erase();
+			} else {
+				_body.append(_buffer.substr(0, contentLength - _body.size()));
+				_buffer.erase(0, contentLength - _body.size());
 			}
 		}
 	}
 	else {
 		std::cout << "No body to load." << std::endl;
-		return;
+		return true;
 	}
 	std::cout << "Loaded HTTP body." << std::endl;
 
 	// maybe dont need body cout
 }
 
-void MiniHttpRequest::parseRequest() {
-	std::cout << "Parsing HTTP request from socket " << _socket_fd << std::endl;
+bool MiniHttpRequest::parseRequest() {
+	std::cout << "Parsing HTTP request from socket [" << _socket.fd << "]" << std::endl;
 
-	std::string request;
-	// long long contentLength = 0;
-	// bool isChunked = false;
+	long long contentLength = 0;
+	bool isChunked = false;
 
-	loadHeader(request);
-	parseHeader(request);
-	// getBodyType(isChunked, contentLength);
-	// loadBody(isChunked, contentLength);
+	if (!_isHeaderLoaded) {
+		if (!loadHeader())
+			return false;
+		parseHeader();
+		// shouldnt throw but should return error response
+		_isHeaderLoaded = true;
+	}
+	
+	getBodyType(isChunked, contentLength);
+	if (!loadBody(isChunked, contentLength))
+		return false;
 
-	std::cout << "Full HTTP request:\n" << request << std::endl;
-
+	// std::cout << "Full HTTP request:\n" << request << std::endl;
+	//
 	std::cout << "Parsed HTTP request." << std::endl;
 	std::cout << "Method: " << _method << std::endl;
 	std::cout << "Path: " << _path << std::endl;
 	std::cout << "Version: " << _version << std::endl;
 	std::cout << "Body: " << _body << std::endl;
+
+	return true;
 
 	// after here we can do http response
 	// for now just dummy response

@@ -241,8 +241,22 @@ void MiniHttpResponse::parseResponse() {
 
 		_statusCode = _locationBlock->getRedirectionStatusCode();
 		if (_statusCode < 300 || _statusCode >= 400) {
-			throw std::runtime_error("Invalid redirection status code: " + ft_toString(_statusCode));
+			// throw std::runtime_error("Invalid redirection status code: " + ft_toString(_statusCode));
+			if (_statusCode < 100 || _statusCode >= 600)
+				return setParseErrorResponse(500);
+			const std::string& redirBody = _locationBlock->getAddress();
+			// build html body for redirection
+			_body.clear();
+			_body = "<!DOCTYPE html>\n<html>\n<head>\n";
+			_body += "    <meta charset=\"utf-8\">\n";
+			_body += "    <p>" + redirBody + "</p>\n";
+			_body += "</body>\n</html>\n";
+			
+			_headers.push_back(std::make_pair("Content-Type", "text/html; charset=utf-8"));
+			_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
+			return;
 		}
+
 		const std::string& redirAddr = _locationBlock->getAddress();
 		if (redirAddr.empty()) {
 			throw std::runtime_error("Redirection address is empty for status code: " + ft_toString(_statusCode));

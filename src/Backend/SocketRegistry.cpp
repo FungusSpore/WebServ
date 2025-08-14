@@ -9,13 +9,13 @@ SocketRegistry::~SocketRegistry(){
 	// }
 }
 
-Socket*	SocketRegistry::makeSocket(int fd, std::string port){
-	this->registry.emplace_back( fd, port );
+Socket*	SocketRegistry::makeSocket(int fd, std::string port, WebServer& server){
+	this->registry.emplace_back( fd, port, &server );
 	return (&this->registry.back());
 }
 
-Socket*	SocketRegistry::makeSocket(int fd,  int clientFd){
-	this->registry.emplace_back( fd, clientFd );
+Socket*	SocketRegistry::makeSocket(int fd,  int clientFd, WebServer& server){
+	this->registry.emplace_back( fd, clientFd, &server );
 	return (&this->registry.back());
 }
 

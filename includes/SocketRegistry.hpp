@@ -6,6 +6,7 @@
 #include <list>
 #include <algorithm>
 #include <unistd.h>
+#include "WebServer.hpp"
 
 class SocketRegistry{
 private:
@@ -14,7 +15,7 @@ public:
 	SocketRegistry();
 	~SocketRegistry();
 
-	Socket*	makeSocket(int fd, std::string port);
+	Socket*	makeSocket(int fd, std::string port, WebServer& server);
 	// Socket*	makeSocket(int fd, int forward_fd);
 	Socket*	makeSocket(int fd, int clientFd);
 	void		removeSocket(const Socket& toBeRemoved);

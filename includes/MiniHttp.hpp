@@ -5,7 +5,9 @@
 #include "MiniHttpResponse.hpp"
 #include "WebServer.hpp"
 #include <iostream>
-#include "Epoll.hpp"
+// #include "Epoll.hpp"
+
+struct Socket;
 
 class MiniHttp {
 private:
@@ -13,11 +15,11 @@ private:
 	// MiniHttpRequest _request;
 	// MiniHttpResponse _response;
 	// MiniHttpRoute _route;
-	Socket _socket;
+	Socket& _socket;
 	// int _socket_fd;
 	WebServer& _server;
 
-	void sendResponse(const MiniHttpResponse& response);
+	void sendResponse(MiniHttpResponse& response);
 public:
 	MiniHttp(Socket& socket, WebServer& server);
 	// MiniHttp(int socket_fd, WebServer& server);

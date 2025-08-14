@@ -3,6 +3,7 @@
 
 #include "Exceptions.hpp"
 #include "SocketRegistry.hpp"
+#include "WebServer.hpp"
 		
 #include <sys/epoll.h>
 #include <sys/types.h>
@@ -31,8 +32,10 @@ private:
 	int nfds, epollfd, idx;
 	void get_new_events();
 
+	WebServer& _server;
+
 public:
-	Epoll(const std::vector<std::string> port_list);
+	Epoll(const std::vector<std::string> port_list, WebServer& server);
 	Epoll(const Epoll& other);
 	Epoll& operator=(const Epoll& other);
 	~Epoll();

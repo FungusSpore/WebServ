@@ -1,10 +1,13 @@
 #ifndef SOCKET_HPP
 # define SOCKET_HPP
 
-#include <cstdint>
 #include <string>
 #include <unistd.h>
-#include <vector>
+#include "MiniHttp.hpp"
+#include "WebServer.hpp"
+
+// class MiniHttp;
+// class Webserver;
 
 #define READ_BUFFER_SIZE 8192
 #define WRITE_BUFFER_SIZE 8192
@@ -13,8 +16,8 @@
 /// Forward fd is used for server cgi data forwarding by default will be -1 and port will be left empty
 struct Socket{
 private:
-	Socket(const Socket&);
-	Socket& operator=(const Socket&);
+	MiniHttp _ProphetHttp;
+
 public:
 	int		fd;
 	int		clientFd;
@@ -26,11 +29,15 @@ public:
 	// std::vector<char> read_buffer;
 	// std::vector<char> write_buffer;
 
-	Socket(int fd, std::string port);
+	Socket(int fd, std::string port, WebServer& server);
 	// Socket(int fd, int forward_fd);
-	Socket(int fd, int clientFd);
+	Socket(int fd, int clientFd, WebServer& server);
+	Socket(const Socket& other);
+	Socket& operator=(const Socket& other);
 	~Socket();
 	bool operator==(const Socket& other) const;
+
+	void runHttp();
 };
 
 #endif // !SOCKET_HPP

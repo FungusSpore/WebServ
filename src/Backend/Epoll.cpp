@@ -1,11 +1,12 @@
 #include "../../includes/Epoll.hpp"
 #include "../../includes/Utils.hpp"
+#include "WebServer.hpp"
 #include <cstddef>
 
 #include <fcntl.h>
 #include <sys/epoll.h>
 
-Epoll::Epoll(const std::vector<std::string> port_list):nfds(0),idx(0){
+Epoll::Epoll(const std::vector<std::string> port_list, WebServer& prophetServer):nfds(0),idx(0) , _server(prophetServer) {
 	struct addrinfo hints, *result, *rp;
 	struct epoll_event ev; // epoll_ctl will make its own copy
 	int listen_sock;
@@ -48,7 +49,7 @@ Epoll::Epoll(const std::vector<std::string> port_list):nfds(0),idx(0){
 		}
 
 		ev.events = EPOLLIN | EPOLLET;
-		ev.data.ptr = listenRegistry.makeSocket(listen_sock, *it);
+		ev.data.ptr = listenRegistry.makeSocket(listen_sock, *it, prophetServer);
 		Utils::setnonblocking(listen_sock);
 		if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1){
 			close(listen_sock);
@@ -80,7 +81,7 @@ std::vector<struct epoll_event> Epoll::get_conn_sock(){
 			Utils::setnonblocking(conn_sock);
 			struct epoll_event ev;
 			ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
-			ev.data.ptr = clientRegistry.makeSocket(conn_sock, sock->port);
+			ev.data.ptr = clientRegistry.makeSocket(conn_sock, sock->port, _server);
 			if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
 				throw SystemFailure("Epoll CTL failed to add listen socket");
 		}
