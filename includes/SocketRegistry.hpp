@@ -9,14 +9,14 @@
 
 class SocketRegistry{
 private:
-	std::list<Socket *> registry;
+	std::list<Socket> registry;
 public:
 	SocketRegistry();
 	~SocketRegistry();
 
 	Socket*	makeSocket(int fd, std::string port);
 	// Socket*	makeSocket(int fd, int forward_fd);
-	Socket*	makeSocket(int fd, Socket *toSend);
+	Socket*	makeSocket(int fd, int clientFd);
 	void		removeSocket(const Socket& toBeRemoved);
 	bool		searchSocket(const Socket& other);
 
