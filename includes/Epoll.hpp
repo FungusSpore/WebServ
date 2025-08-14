@@ -37,11 +37,11 @@ public:
 	Epoll& operator=(const Epoll& other);
 	~Epoll();
 
-	std::vector<Socket *> get_conn_sock();
+	std::vector<struct epoll_event> get_conn_sock();
 	Socket *get_conn_sock2();
 	int get_epollfd() const;
 	void closeSocket(const Socket& other);
-	Socket* makeClientSocket(int fd, Socket* client);
+	Socket* makeClientSocket(int fd, int clientFd);
 };
 
 #endif

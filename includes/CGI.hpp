@@ -5,6 +5,7 @@
 #include "Epoll.hpp"
 #include "Exceptions.hpp"
 #include "Utils.hpp"
+#include "IO.hpp"
 
 #include <sys/types.h>
 #include <sys/epoll.h>
@@ -17,7 +18,7 @@ private:
 	CGI();
 	~CGI();
 public:
-	static int exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& epoll, Socket* client);
+	static int exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& epoll, Socket& client);
 };
 
 #endif // !CGI_HPP
