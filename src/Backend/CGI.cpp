@@ -1,11 +1,4 @@
 #include "../../includes/CGI.hpp"
-#include <asm-generic/socket.h>
-#include <cstdint>
-#include <string>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 int CGI::exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& epoll, Socket& client){
 	int sv[2];

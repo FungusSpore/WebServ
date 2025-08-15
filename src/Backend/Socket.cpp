@@ -27,7 +27,7 @@ Socket& Socket::operator=(const Socket& other){
 }
 
 Socket::~Socket(){
-	close(this->fd);
+	// close(this->fd);
 	// if (!toSend)
 	// 	delete toSend;
 }

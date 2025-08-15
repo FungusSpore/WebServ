@@ -1,12 +1,4 @@
 #include "../../includes/IO.hpp"
-#include <cerrno>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <vector>
 
 void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 	ssize_t		size;
@@ -49,7 +41,7 @@ int	IO::try_read(Epoll& epoll, struct epoll_event& event){
 	Socket&		sock = *static_cast<Socket *>(event.data.ptr);
 
 	while (true){
-		ssize_t size = recv(sock.fd, buffer, READ_BUFFER, 0);
+		size = recv(sock.fd, buffer, READ_BUFFER, 0);
 		if (size > 0)
 			sock.read_buffer.insert(sock.read_buffer.end(), buffer, buffer+size);
 		else if (size == -1) // assume EAGAIN

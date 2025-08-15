@@ -3,8 +3,6 @@
 #include "WebServer.hpp"
 #include <cstddef>
 
-#include <fcntl.h>
-#include <sys/epoll.h>
 
 Epoll::Epoll(const std::vector<std::string> port_list, WebServer& prophetServer):nfds(0),idx(0) , _server(prophetServer) {
 	struct addrinfo hints, *result, *rp;
