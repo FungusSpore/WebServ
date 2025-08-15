@@ -1,6 +1,0 @@
-This is a sample text file for directory listing test.
-You can see this file when browsing the /directory/ path.
-
-File: sample1.txt
-Purpose: Testing autoindex functionality
-Server: Prophet/1.0
