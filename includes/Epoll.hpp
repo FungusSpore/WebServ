@@ -12,7 +12,6 @@
 #include <cstring>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 #include <fcntl.h>
 #include <cerrno>

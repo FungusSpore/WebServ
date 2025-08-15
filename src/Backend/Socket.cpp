@@ -11,7 +11,7 @@ Socket::Socket(int fd, int clientFd):fd(fd), clientFd(clientFd){
 }
 
 Socket::~Socket(){
-	close(this->fd);
+	// close(this->fd);
 	// if (!toSend)
 	// 	delete toSend;
 }

@@ -2,7 +2,14 @@
 # define IO_HPP
 
 #include "Epoll.hpp"
+
 #include <sys/epoll.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
 
 class IO{
 private:

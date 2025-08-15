@@ -1,9 +1,6 @@
 #include "../../includes/Epoll.hpp"
 #include "../../includes/Utils.hpp"
-#include <cstddef>
 
-#include <fcntl.h>
-#include <sys/epoll.h>
 
 Epoll::Epoll(const std::vector<std::string> port_list):nfds(0),idx(0){
 	struct addrinfo hints, *result, *rp;
