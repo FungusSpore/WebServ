@@ -25,6 +25,6 @@ debug:
 	$(CC) $(SANITIZE) $(FLAGS) $(SOURCE) -o $(NAME)
 
 jwtest:
-	c++ $(SANITIZE) src/Backend/CGI.cpp src/Backend/Epoll.cpp src/Backend/Socket.cpp src/Backend/SocketRegistry.cpp src/Backend/IO.cpp src/Exceptions/Exceptions.cpp src/Utils/Utils.cpp
+	c++ $(SANITIZE) $(FLAGS) src/Backend/CGI.cpp src/Backend/Epoll.cpp src/Backend/Socket.cpp src/Backend/SocketRegistry.cpp src/Backend/IO.cpp src/Exceptions/Exceptions.cpp src/Utils/Utils.cpp
 
 .PHONY: all clean fclean re debug jwtest

@@ -3,19 +3,19 @@
 SocketRegistry::SocketRegistry(){}
 
 SocketRegistry::~SocketRegistry(){
-	// while (!registry.empty()){
-	// 	removeSocket(registry.back());
-	// 	registry.pop_back();
-	// }
+	while (!registry.empty()){
+		removeSocket(registry.back());
+		registry.pop_back();
+	}
 }
 
 Socket*	SocketRegistry::makeSocket(int fd, std::string port){
-	this->registry.emplace_back( fd, port );
+	this->registry.push_back( Socket(fd, port) );
 	return (&this->registry.back());
 }
 
 Socket*	SocketRegistry::makeSocket(int fd,  int clientFd){
-	this->registry.emplace_back( fd, clientFd );
+	this->registry.push_back( Socket(fd, clientFd) );
 	return (&this->registry.back());
 }
 
@@ -24,6 +24,7 @@ void		SocketRegistry::removeSocket(const Socket& toBeRemoved){
 	if (it == registry.end())
 		throw ObjectNotFound("No such socket");
 	// delete *it;
+	close(it->fd);
 	registry.erase(it);
 }
 

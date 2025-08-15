@@ -1,10 +1,8 @@
 #ifndef SOCKET_HPP
 # define SOCKET_HPP
 
-#include <cstdint>
 #include <string>
 #include <unistd.h>
-#include <vector>
 
 #define READ_BUFFER_SIZE 8192
 #define WRITE_BUFFER_SIZE 8192
@@ -12,9 +10,10 @@
 /// Socket is to store socket fd, and which port it connected to. 
 /// Forward fd is used for server cgi data forwarding by default will be -1 and port will be left empty
 struct Socket{
-private:
-	Socket(const Socket&);
-	Socket& operator=(const Socket&);
+// private:
+		// MiniHttp Prophet;
+// 	Socket(const Socket&);
+// 	Socket& operator=(const Socket&);
 public:
 	int		fd;
 	int		clientFd;
