@@ -30,6 +30,14 @@ Epoll::Epoll(const std::vector<std::string> port_list, WebServer& prophetServer)
 			listen_sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol); 
 			if (listen_sock == -1)
 				continue ;
+			
+			// Set SO_REUSEADDR to allow immediate reuse of address
+			int opt = 1;
+			if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+				close(listen_sock);
+				continue;
+			}
+			
 			if (bind(listen_sock, rp->ai_addr, rp->ai_addrlen) == 0)
 				break ;
 			close(listen_sock);
@@ -64,7 +72,6 @@ void	Epoll::get_new_events(){
 		this->idx = 0;
 }
 
-
 std::vector<struct epoll_event> Epoll::get_conn_sock(){
 	std::vector<struct epoll_event> result;
 
@@ -79,7 +86,9 @@ std::vector<struct epoll_event> Epoll::get_conn_sock(){
 			Utils::setnonblocking(conn_sock);
 			struct epoll_event ev;
 			ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
-			ev.data.ptr = clientRegistry.makeSocket(conn_sock, sock->port, _server);
+			Socket* clientSocket = clientRegistry.makeSocket(conn_sock, sock->port, _server);
+			clientSocket->loadServerKey(conn_sock); // Load server key on the client socket
+			ev.data.ptr = clientSocket;
 			if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
 				throw SystemFailure("Epoll CTL failed to add listen socket");
 		}
@@ -94,13 +103,12 @@ int Epoll::get_epollfd() const{
 }
 
 Socket* Epoll::makeClientSocket(int fd, int clientFd){
-	return clientRegistry.makeSocket(fd, clientFd);
+	return clientRegistry.makeSocket(fd, clientFd, _server);
 }
 
 void Epoll::closeSocket(const Socket& other){
 	clientRegistry.removeSocket(other);
 }
-
 
 // #include <iostream>
 // int main(){

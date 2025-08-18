@@ -44,10 +44,10 @@ jwtest:
 	c++ $(SANITIZE) $(FLAGS) src/Backend/CGI.cpp src/Backend/Epoll.cpp src/Backend/Socket.cpp src/Backend/SocketRegistry.cpp src/Backend/IO.cpp src/Exceptions/Exceptions.cpp src/Utils/Utils.cpp
 
 valgrind:
-	valgrind --leak-check=full ./$(NAME)
+	valgrind --leak-check=full ./$(NAME) dummy_server.conf
 
 fval:
-	valgrind -v --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME)
+	valgrind -v --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) dummy_server.conf
 
 fsanitize: CFLAGS += -fsanitize=address,leak -g3 -O1
 fsanitize: clean all

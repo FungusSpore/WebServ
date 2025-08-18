@@ -11,24 +11,10 @@
 #include "Socket.hpp"
 
 MiniHttpRequest::MiniHttpRequest(Socket& socket) 
-	: _socket(socket), _method(""), _path(""), _version(""), _body(""), _trailer("") {}
+	: _socket(socket), _buffer(""), _method(""), _path(""), _version(""), _body(""), _trailer(""), _headers(), _isHeaderLoaded(false) {}
 
-MiniHttpRequest::MiniHttpRequest(const MiniHttpRequest& other)
-	: _socket(other._socket), _method(other._method), _path(other._path), 
-	  _version(other._version), _body(other._body), _trailer(other._trailer), _headers(other._headers) {}
-
-MiniHttpRequest& MiniHttpRequest::operator=(const MiniHttpRequest& other) {
-	if (this != &other) {
-		_socket = other._socket;
-		_method = other._method;
-		_path = other._path;
-		_version = other._version;
-		_body = other._body;
-		_trailer = other._trailer;
-		_headers = other._headers;
-	}
-	return *this;
-}
+// Copy constructor and assignment operator are intentionally not implemented
+// because this class contains references that cannot be safely copied
 
 MiniHttpRequest::~MiniHttpRequest() {
 	// if (_socket_fd != -1) {
@@ -185,16 +171,21 @@ void MiniHttpRequest::getBodyType(bool& isChunked, long long& contentLength) {
 }
 
 void MiniHttpRequest::parseTrailer(std::string& chunk) {
-	char buffer[1024] = {0};
-	int bytes_read;
+	// char buffer[1024] = {0};
+	// int bytes_read;
+	//
+	// while (chunk.find("\r\n\r\n") == std::string::npos) {
+	// 	bytes_read = recv(_socket_fd, buffer, sizeof(buffer) - 1, 0);
+	// 	if (bytes_read <= 0) {
+	// 		throw std::runtime_error("Failed to read trailer from socket");
+	// 	}
+	// 	buffer[bytes_read] = '\0';
+	// 	chunk.append(buffer);
+	// }
 
-	while (chunk.find("\r\n\r\n") == std::string::npos) {
-		bytes_read = recv(_socket_fd, buffer, sizeof(buffer) - 1, 0);
-		if (bytes_read <= 0) {
-			throw std::runtime_error("Failed to read trailer from socket");
-		}
-		buffer[bytes_read] = '\0';
-		chunk.append(buffer);
+	if (_buffer.find("\r\n\r\n") == std::string::npos) {
+		// no trailer found
+		return;
 	}
 
 	// std::string trailer = chunk.substr(0, chunk.find("\r\n\r\n"));
@@ -264,6 +255,8 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 	std::cout << "Loaded HTTP body." << std::endl;
 
 	// maybe dont need body cout
+	
+	return true;
 }
 
 bool MiniHttpRequest::parseRequest() {
@@ -273,9 +266,12 @@ bool MiniHttpRequest::parseRequest() {
 	bool isChunked = false;
 
 	if (!_isHeaderLoaded) {
+		std::cout << "Loading HTTP header..." << std::endl;
 		if (!loadHeader())
 			return false;
+		std::cout << "HTTP header loaded." << std::endl;
 		parseHeader();
+		std::cout << "Parsed HTTP header." << std::endl;
 		// shouldnt throw but should return error response
 		_isHeaderLoaded = true;
 	}

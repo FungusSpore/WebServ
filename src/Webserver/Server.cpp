@@ -429,6 +429,7 @@ const Location* Server::matchLocation(const std::string& target) const {
 
 		if (target.compare(0, path.size(), path) == 0
 			&& (target.size() == path.size() || target[path.size()] == '/')) {
+			// && (target.size() == path.size() || (target.size() > path.size() && target[path.size()] == '/'))) {
 			if (path.size() > matchLength) {
 				matchLength = path.size();
 				match = &_locations[i];
@@ -464,7 +465,7 @@ ServerKey::ServerKey(const std::string& ip, const std::string& port, const std::
 bool operator<(const ServerKey& lhs, const ServerKey& rhs) {
 	if (lhs._port != rhs._port)
 		return (lhs._port < rhs._port);
-	if (lhs._serverName < rhs._serverName)
+	if (lhs._serverName != rhs._serverName) // should be !=
 		return (lhs._serverName < rhs._serverName);
 	return (lhs._ip < rhs._ip);
 }

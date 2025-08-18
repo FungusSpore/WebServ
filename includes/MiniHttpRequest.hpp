@@ -21,10 +21,13 @@ private:
 	void parseTrailer(std::string& chunk);
 	bool loadBody(bool isChunked, long long contentLength);
 
-public:
-	MiniHttpRequest(Socket& socket);
+	// Copy constructor and assignment operator are declared private and not implemented
+	// to prevent copying objects with reference members (C++98 idiom)
 	MiniHttpRequest(const MiniHttpRequest& other);
 	MiniHttpRequest& operator=(const MiniHttpRequest& other);
+
+public:
+	MiniHttpRequest(Socket& socket);
 	~MiniHttpRequest();
 
 	// Parses the HTTP request from the socket

@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include "WebServer.hpp"
+#include <typeinfo>
 
 #define M_WS " \t\n\r\f\v"
 #define M_CRLF "\r\n"
@@ -13,8 +14,6 @@ std::string getMimeType(const std::string& extension);
 std::string getFileExtension(const std::string& filename);
 bool isMimeTypeText(const std::string& mimeType);
 std::string getFileContent(const std::string& path);
-template <typename T>
-std::string ft_toString(T value);
 std::string getStatusCodeMsg(int statusCode);
 std::string getCurrentTime();
 
@@ -27,5 +26,16 @@ std::string joinPath(const std::string& a, const std::string& b);
 std::string normalizeUnderRoot(const std::string& path, const std::string& root);
 std::string getDefaultIndexFile(const std::string& path);
 bool isSlashRedirect(const std::string& path);
+
+template <typename T>
+std::string ft_toString(T value) {
+	std::ostringstream oss;
+	oss << value;
+	if (oss.fail()) {
+		std::string errorMsg = "Failed to convert value of type " + std::string(typeid(T).name()) + " to string";
+		throw std::runtime_error(errorMsg);
+	}
+	return oss.str();
+}
 
 #endif

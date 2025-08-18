@@ -4,7 +4,7 @@
 #include <map>
 #include <sys/stat.h>
 #include "MiniHttpUtils.hpp"
-#include <typeinfo>
+// #include <typeinfo>
 
 
 void ft_strtrim(std::string& s) {
@@ -99,16 +99,16 @@ std::string getFileContent(const std::string& path) {
 	}
 }
 
-template <typename T>
-std::string ft_toString(T value) {
-	std::ostringstream oss;
-	oss << value;
-	if (oss.fail()) {
-		std::string errorMsg = "Failed to convert value of type " + std::string(typeid(T).name()) + " to string";
-		throw std::runtime_error(errorMsg);
-	}
-	return oss.str();
-}
+// template <typename T>
+// std::string ft_toString(T value) {
+// 	std::ostringstream oss;
+// 	oss << value;
+// 	if (oss.fail()) {
+// 		std::string errorMsg = "Failed to convert value of type " + std::string(typeid(T).name()) + " to string";
+// 		throw std::runtime_error(errorMsg);
+// 	}
+// 	return oss.str();
+// }
 
 std::string getStatusCodeMsg(int statusCode) {
     std::map<int, std::string> m;
@@ -219,8 +219,11 @@ std::string joinPath(const std::string& a, const std::string& b) {
 	return a + b;
 }
 
-std::string normalizeUnderRoot(const std::string& path, const std::string& root) {
+std::string normalizeUnderRoot(const std::string& root, const std::string& path) {
 	// Normalize the path under the given root directory with handling of '.', '..', and empty components.
+	
+	std::cout << "Normalizing path: " << path << " under root: " << root << std::endl;
+
 	std::vector<std::string> components;
 	std::istringstream iss(path);
 	std::string part;

@@ -27,8 +27,8 @@ int CGI::exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& e
 		dup2(sv[1], STDOUT_FILENO);
 		dup2(sv[1], STDIN_FILENO);
 		close(sv[1]);
-		if (execve(interpreter.c_str(), argv, envp) == -1)
-			exit(1);
+		execve(interpreter.c_str(), argv, envp); // no need to check return value, it will exit if it fails - compile error
+		exit(1);
 	default:
 		close(sv[1]);
 		ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;

@@ -2,65 +2,66 @@
 #define MINIHTTPRESPONSE_HPP
 
 #include <iostream>
+#include <vector>
+#include <string>
 #include "MiniHttpRequest.hpp"
-// #include "MiniHttpRoute.hpp"
 #include "WebServer.hpp"
 
 class MiniHttpResponse {
 private:
+	// Core dependencies
 	WebServer& _server;
 	const Server* _serverBlock;
 	const Location* _locationBlock;
-
 	MiniHttpRequest& _request;
-	int _socket_fd;
+	Socket& _socket;
 
+	// Response data
 	int _statusCode;
 	std::string _statusMessage;
 	std::string _body;
 	std::vector<std::pair<std::string, std::string> > _headers;
 
-	ServerKey createServerKey();
+	// === Core Configuration & Validation ===
+	ServerKey& createServerKey();
 	bool validateServerConf();
-	void loadBody(const std::string& path);
-	void parseErrorCode();
-	void parseErrorResponse();
+
+	// === Error Handling ===
+	void setErrorStatus();
 	void setParseErrorResponse(int statusCode);
+	void parseErrorResponse();
+	void defaultErrorResponse();
+
+	// === Header Management ===
 	void parseDefaultHeader();
 	bool hasHeader(const std::string& key) const;
 
-	std::string buildAutoIndexBody(const std::string& fsPath) const;
-
-	// std::string getBody() const;
-	
+	// === Content Handlers ===
 	void handleRedirection();
 	void handleCgi();
-	void handleUpload();
 	void handleAutoIndex();
-	void handleStatic();
+	void handleStaticFile();
 	void handleProxyPass();
-	
 
-	void setErrorStatus();
+	// === File & Directory Operations ===
+	void loadBody(const std::string& path);
+	void handleFileRequest(const std::string& fsPath);
+	std::string buildAutoIndexBody(const std::string& fsPath) const;
+	std::string genfsPath(const Location* locationBlock, const std::string& path);
+	bool handleSlashRedirect();
 
-public:
-	MiniHttpResponse(WebServer& server, MiniHttpRequest& request, int socket_fd);
-	// MiniHttpResponse(MiniHttpRoute& route);
-	// MiniHttpResponse(MiniHttpRoute& route, int statusCode);
-	// MiniHttpResponse(MiniHttpRoute& route, int statusCode, const std::string& _statusMessage);
+private:
+	// Prevent copying (C++98 style)
 	MiniHttpResponse(const MiniHttpResponse& other);
 	MiniHttpResponse& operator=(const MiniHttpResponse& other);
+
+public:
+	MiniHttpResponse(WebServer& server, MiniHttpRequest& request, Socket& socket);
 	~MiniHttpResponse();
 
+	// Main interface
 	void parseResponse();
 	std::string buildResponse();
-
-	// build a getters for the most common headers to lookup for parseResponse
-	// std::multimap<std::string, std::string>& getHeaders() {
-	// 	return _headers;
-	// }
-
-
 };
 
 #endif

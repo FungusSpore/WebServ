@@ -17,7 +17,7 @@ public:
 
 	Socket*	makeSocket(int fd, std::string port, WebServer& server);
 	// Socket*	makeSocket(int fd, int forward_fd);
-	Socket*	makeSocket(int fd, int clientFd);
+	Socket*	makeSocket(int fd, int clientFd, WebServer& server);
 	void		removeSocket(const Socket& toBeRemoved);
 	bool		searchSocket(const Socket& other);
 

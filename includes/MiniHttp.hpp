@@ -19,15 +19,22 @@ private:
 	// int _socket_fd;
 	WebServer& _server;
 
-	void sendResponse(MiniHttpResponse& response);
+	// Copy constructor and assignment operator are declared private and not implemented
+	// to prevent copying objects with reference members (C++98 idiom)
+	MiniHttp(const MiniHttp& other);
+	MiniHttp& operator=(const MiniHttp& other);
+
+	// void sendResponse(MiniHttpResponse& response);
 public:
 	MiniHttp(Socket& socket, WebServer& server);
 	// MiniHttp(int socket_fd, WebServer& server);
-	MiniHttp(const MiniHttp& other);
-	MiniHttp& operator=(const MiniHttp& other);
 	~MiniHttp();
 
-	void run();
+	bool run();
+	bool validateCGI();
+	
+	// Getter for server reference
+	WebServer& getServer() const { return _server; }
 };
 
 #endif

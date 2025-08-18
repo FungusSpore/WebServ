@@ -15,9 +15,6 @@
 /// Socket is to store socket fd, and which port it connected to. 
 /// Forward fd is used for server cgi data forwarding by default will be -1 and port will be left empty
 struct Socket{
-private:
-	MiniHttp _ProphetHttp;
-
 public:
 	int		fd;
 	int		clientFd;
@@ -37,7 +34,16 @@ public:
 	~Socket();
 	bool operator==(const Socket& other) const;
 
-	void runHttp();
+	bool runHttp();
+	bool validateCGI();
+
+	void loadServerKey(int conn_sock);
+	ServerKey& getServerKey() { return _serverKey; }
+
+private:
+	ServerKey _serverKey;
+	MiniHttp _ProphetHttp;
+
 };
 
 #endif // !SOCKET_HPP
