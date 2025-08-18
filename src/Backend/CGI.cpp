@@ -1,17 +1,17 @@
 #include "../../includes/CGI.hpp"
+#include <fstream>
+#include <iostream>
+#include <sstream>
 
-int CGI::exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& epoll, Socket& client){
+int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 	int sv[2];
 	std::string interpreter;
 	char **argv;
 	struct epoll_event ev;
 
-	if (mime_type == ".py")
-		interpreter = "/usr/bin/python3";
-	argv = new char*[3];
-	argv[0] = const_cast<char *>(interpreter.c_str());
-	argv[1] = const_cast<char *>(cgi_path);
-	argv[2] = NULL;
+	argv = new char*[2];
+	argv[0] = const_cast<char *>(cgi_path);
+	argv[1] = NULL;
 
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0, sv) == -1)
 		throw SystemFailure("cgi socketpair failed");
@@ -40,6 +40,17 @@ int CGI::exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& e
 }
 
 
+std::string extractHeader(std::string& read_buffer){
+	std::string header;
+
+	std::string::size_type s = read_buffer.find("\r\n\r\n");
+	if (s == std::string::npos)
+		return header;
+	header = read_buffer.substr(0, s + 4);
+	read_buffer.erase(0, s + 4);
+	return header;
+}
+
 // read -> store in buffer -> check is it a complete request (Vicky)
 // -> if not then store in buffer, and go next
 // -> else then process and send back data (Vicky)
@@ -50,11 +61,13 @@ int CGI::exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& e
 //				-> if can't send all go next
 //				-> else remove EPOLLOUT
 
-
 // int main(int argc, char **argv, char **envp){
 // 	try {
+// 		(void)argc;
+// 		(void)argv;
 // 		std::vector<std::string> port; 
-// 		port.push_back("12345");
+// 		port.push_back("12346");
+// 		// port.push_back("12345");
 // 		Epoll epoll(port);
 //
 // 		for (;;){
@@ -72,25 +85,61 @@ int CGI::exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& e
 // 					epoll.closeSocket(*mysock);
 // 					continue ;
 // 				}
-//
 // 				if (events & EPOLLIN){
 // 					std::cout << "EPOLLIN" << std::endl;
 // 					// act like process
 // 					if (IO::try_read(epoll, myevents.at(i)) != -1){
-// 						if (mysock->read_buffer.at(0) == 'z'){
+// 						// GET
+// 						if (mysock->read_buffer.at(0) == 'G'){
+// 							std::ifstream file("public/hello_form.html");
+// 							if (!file.is_open()){
+// 								std::cerr << "html fail to open" << std::endl;
+// 								continue;
+// 							}
+// 							std::stringstream buffer;
+// 							buffer << file.rdbuf();
+//
+// 							std::string body = buffer.str();
+//
+// 							// build proper HTTP/1.1 response
+// 							std::string response =
+// 									"HTTP/1.1 200 OK\r\n"
+// 									"Content-Type: text/html\r\n"
+// 									"Content-Length: " + std::to_string(body.size()) + "\r\n"
+// 									"Connection: close\r\n" +
+// 									"\r\n" + 
+// 									body;
+//
+// 							mysock->write_buffer = response;
+// 							IO::try_write(epoll, myevents.at(i));
+// 							mysock->read_buffer.erase();
+// 						}
+// 						// POST
+// 						else if (mysock->read_buffer.at(0) == 'P'){
 // 							std::string cgi_path = "cgi-bin/hello_process.py";
-// 							int write_end = CGI::exec(cgi_path.c_str(), ".py", envp, epoll, *mysock);
-// 							// dont' need
+// 							int write_end = CGI::exec(cgi_path.c_str(), envp, epoll, *mysock);
+// 							write(write_end, mysock->read_buffer.c_str(), mysock->read_buffer.size());
 // 							if (shutdown(write_end, 1) == -1)
 // 								throw SystemFailure("shutdown failed");
 // 							mysock->read_buffer.erase();
 // 						}
+//
 // 						else {
-// 							mysock->write_buffer = mysock->read_buffer;
+// 							std::string header = CGI::extractHeader(mysock->read_buffer);
+// 							if (header.size() == 0) // error
+// 								continue;
+//
+// 							mysock->write_buffer = 
+// 									"HTTP/1.1 200 OK\r\n"
+// 									"Content-Length: " + std::to_string(mysock->read_buffer.size()) + "\r\n" +
+// 									header +
+// 									mysock->read_buffer;
+//
 // 							mysock->read_buffer.erase();
 // 							std::cout << "fd " << mysock->fd << mysock->write_buffer << std::endl;
 // 							IO::try_write(epoll, myevents.at(i));
 // 						}
+//
 // 					}
 // 				}
 //
@@ -98,8 +147,6 @@ int CGI::exec(const char *cgi_path, std::string mime_type, char **envp, Epoll& e
 // 					std::cout << "EPOLLOUT" << std::endl;
 // 					IO::try_write(epoll, myevents.at(i));
 // 				}
-//
-//
 // 			}
 // 		}
 //
