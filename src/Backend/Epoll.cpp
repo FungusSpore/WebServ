@@ -1,59 +1,62 @@
 #include "../../includes/Epoll.hpp"
 #include "../../includes/Utils.hpp"
-#include "WebServer.hpp"
+#include "../../includes/WebServer.hpp"
 #include <cstddef>
 
-
-Epoll::Epoll(const std::vector<std::string> port_list, WebServer& prophetServer):nfds(0),idx(0) , _server(prophetServer) {
-	struct addrinfo hints, *result, *rp;
-	struct epoll_event ev; // epoll_ctl will make its own copy
-	int listen_sock;
-
-	// set type of socket needed
+/// To setup what type of socket is needed
+static void	setupHints(struct addrinfo& hints){
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
+}
 
+/// create a socket and try to bind it
+static void	tryBindAddr(struct addrinfo& hints, int& listen_sock, const std::string& port){
+	struct addrinfo *result, *rp;
+
+	if (getaddrinfo(NULL, port.c_str(), &hints, &result) != 0)
+		throw SystemFailure("Failed to get addr info");
+
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		listen_sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol); 
+		if (listen_sock == -1)
+			continue ;
+		// Set SO_REUSEADDR to allow immediate reuse of address
+		int opt = 1;
+		if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+			close(listen_sock);
+			continue;
+		}
+		if (bind(listen_sock, rp->ai_addr, rp->ai_addrlen) == 0)
+			break ;
+		close(listen_sock);
+	}
+	if (rp == NULL){
+		freeaddrinfo(result);
+		throw SystemFailure("Listen Socket Failed to initialize");
+	}
+	freeaddrinfo(result);
+}
+
+
+Epoll::Epoll(const std::vector<std::string> port_list, WebServer& prophetServer):nfds(0),idx(0) , _server(prophetServer) {
+	struct addrinfo hints;
+	struct epoll_event ev; // epoll_ctl will make its own copy
+	int listen_sock;
+
+	setupHints(hints);
 	this->epollfd = epoll_create(1);// 1 is just a placeholder does nothing
 	if (this->epollfd == -1)
 		throw SystemFailure("Epoll create failed");
-
 	std::vector<std::string>::const_iterator it = port_list.begin();
+
 	for (; it != port_list.end(); it++){
-		// try and get a list of potential addrs based on hints
-		if (getaddrinfo(NULL, it->c_str(), &hints, &result) != 0)
-			throw SystemFailure("Failed to get addr info");
-
-		// try and get a socket and bind it
-		for (rp = result; rp != NULL; rp = rp->ai_next) {
-			listen_sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol); 
-			if (listen_sock == -1)
-				continue ;
-			
-			// Set SO_REUSEADDR to allow immediate reuse of address
-			int opt = 1;
-			if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
-				close(listen_sock);
-				continue;
-			}
-			
-			if (bind(listen_sock, rp->ai_addr, rp->ai_addrlen) == 0)
-				break ;
-			close(listen_sock);
-		}
-
-		if (rp == NULL){
-			freeaddrinfo(result);
-			throw SystemFailure("Listen Socket Failed to initialize");
-		}
-		freeaddrinfo(result);
-
+		tryBindAddr(hints, listen_sock, *it);
 		if (listen(listen_sock, LISTEN_BACKLOG) == -1){
 			close(listen_sock);
 			throw SystemFailure("Failed listen on socket");
 		}
-
 		ev.events = EPOLLIN | EPOLLET;
 		ev.data.ptr = listenRegistry.makeSocket(listen_sock, *it, prophetServer);
 		Utils::setnonblocking(listen_sock);
@@ -74,26 +77,30 @@ void	Epoll::get_new_events(){
 
 std::vector<struct epoll_event> Epoll::get_conn_sock(){
 	std::vector<struct epoll_event> result;
+	struct epoll_event							ev;
+	Socket*													sock;
+	Socket*													clientSocket;
+	int															conn_sock;
 
 	if (this->idx >= this->nfds)
 		get_new_events();
 
 	for (; idx < nfds; idx++){
-		Socket *sock = (Socket *)events[idx].data.ptr;
-		if (listenRegistry.searchSocket(*sock)){
-			int conn_sock = accept(sock->fd, NULL, NULL); 
-			if (conn_sock == -1) throw SystemFailure("Accept has failed");
-			Utils::setnonblocking(conn_sock);
-			struct epoll_event ev;
-			ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
-			Socket* clientSocket = clientRegistry.makeSocket(conn_sock, sock->port, _server);
-			clientSocket->loadServerKey(conn_sock); // Load server key on the client socket
-			ev.data.ptr = clientSocket;
-			if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
-				throw SystemFailure("Epoll CTL failed to add listen socket");
-		}
-		else
+		sock = (Socket *)events[idx].data.ptr;
+		if (!listenRegistry.searchSocket(*sock)){
 			result.push_back(events[idx]);
+			continue ;
+		}
+		conn_sock = accept(sock->fd, NULL, NULL); 
+		if (conn_sock == -1) 
+			throw SystemFailure("Accept has failed");
+		Utils::setnonblocking(conn_sock);
+		ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
+		clientSocket = clientRegistry.makeSocket(conn_sock, sock->port, _server);
+		clientSocket->loadServerKey(conn_sock); // Load server key on the client socket
+		ev.data.ptr = clientSocket;
+		if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
+			throw SystemFailure("Epoll CTL failed to add listen socket");
 	}
 	return (result);
 }
