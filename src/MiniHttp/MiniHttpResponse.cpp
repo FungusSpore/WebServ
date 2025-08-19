@@ -46,10 +46,6 @@ ServerKey& MiniHttpResponse::createServerKey() {
 bool MiniHttpResponse::validateServerConf() {
 	ServerKey& key = createServerKey();
 
-	// debug key value with key._ip, key._port, key._serverName
-	// std::cout << "Debug server key with IP: " << key._ip 
-	//           << ", Port: " << key._port 
-	//           << ", Server Name: " << key._serverName << std::endl;
 	_serverBlock = _server.matchServer(key);
 	if (!_serverBlock) {
 		_statusCode = 500;
@@ -156,9 +152,9 @@ void MiniHttpResponse::parseDefaultHeader()
 	if (!hasHeader("Content-Length"))
 		defaults.push_back(std::make_pair("Content-Length", "0"));
 
-	if (!hasHeader("Connection")) {
+	if (!_socket.keepAlive) {
 		defaults.push_back(std::make_pair("Connection", "close"));
-	} // keep alive here?
+	}
 
 	_headers.insert(_headers.begin(), defaults.begin(), defaults.end());
 }
@@ -171,6 +167,15 @@ bool MiniHttpResponse::hasHeader(const std::string& key) const
 			return true;
 	}
 	return false;
+}
+
+std::string MiniHttpResponse::getHeaderValue(const std::string& key) const {
+	for (std::vector<std::pair<std::string,std::string> >::const_iterator it = _headers.begin();
+		 it != _headers.end(); ++it) {
+		if (strcasecmp(it->first.c_str(), key.c_str()) == 0)
+			return it->second;
+	}
+	return "";
 }
 
 // ===================================================================
@@ -289,6 +294,87 @@ std::string MiniHttpResponse::buildAutoIndexBody(const std::string& fsPath) cons
 	return indexBody.str();
 }
 
+std::vector<std::string> MiniHttpResponse::createCgiEnv()
+{
+	std::vector<std::string> envVars;
+	
+	envVars.push_back("SERVER_SOFTWARE=ProphetServer/1.0");
+	envVars.push_back("GATEWAY_INTERFACE=CGI/1.1");
+	envVars.push_back("SERVER_PROTOCOL=HTTP/1.1");
+	envVars.push_back("REQUEST_METHOD=" + _request.getMethod());
+	
+	// Request URI, script name, and path info need tweaking
+	std::string requestUri = _request.getPath();
+	envVars.push_back("REQUEST_URI=" + requestUri);
+	
+	std::string scriptName = _locationBlock->getUriPath();
+	std::string pathInfo = "";
+	
+	if (requestUri.length() > scriptName.length()) {
+		pathInfo = requestUri.substr(scriptName.length());
+	}
+	
+	envVars.push_back("SCRIPT_NAME=" + scriptName);
+	if (!pathInfo.empty()) {
+		envVars.push_back("PATH_INFO=" + pathInfo);
+	}
+	
+	size_t questionPos = requestUri.find('?');
+	if (questionPos != std::string::npos) {
+		std::string queryString = requestUri.substr(questionPos + 1);
+		envVars.push_back("QUERY_STRING=" + queryString);
+	} else {
+		envVars.push_back("QUERY_STRING=");
+	}
+	
+	const std::multimap<std::string, std::string>& headers = _request.getHeaders();
+	std::multimap<std::string, std::string>::const_iterator hostIt = headers.find("Host");
+	if (hostIt != headers.end()) {
+		std::string host = hostIt->second;
+		size_t colonPos = host.find(':');
+		if (colonPos != std::string::npos) {
+			envVars.push_back("SERVER_NAME=" + host.substr(0, colonPos));
+			envVars.push_back("SERVER_PORT=" + host.substr(colonPos + 1));
+		} else {
+			envVars.push_back("SERVER_NAME=" + host);
+			envVars.push_back("SERVER_PORT=80");
+		}
+	}
+	
+	envVars.push_back("REMOTE_ADDR=" + _socket.getServerKey()._ip);
+	envVars.push_back("REMOTE_PORT=" + _socket.getServerKey()._port);
+	envVars.push_back("REMOTE_HOST=" + _socket.getServerKey()._serverName);
+
+	if (_request.getMethod() == "POST") {
+		std::multimap<std::string, std::string>::const_iterator contentTypeIt = headers.find("Content-Type");
+		if (contentTypeIt != headers.end()) {
+			envVars.push_back("CONTENT_TYPE=" + contentTypeIt->second);
+		}
+		
+		std::multimap<std::string, std::string>::const_iterator contentLengthIt = headers.find("Content-Length");
+		if (contentLengthIt != headers.end()) {
+			envVars.push_back("CONTENT_LENGTH=" + contentLengthIt->second);
+		} else {
+			envVars.push_back("CONTENT_LENGTH=" + ft_toString(_request.getBody().size()));
+		}
+	}
+	
+	for (std::multimap<std::string, std::string>::const_iterator it = headers.begin(); 
+		 it != headers.end(); ++it) {
+		std::string headerName = "HTTP_" + it->first;
+		for (size_t i = 0; i < headerName.length(); ++i) {
+			if (headerName[i] == '-') {
+				headerName[i] = '_';
+			} else {
+				headerName[i] = std::toupper(headerName[i]);
+			}
+		}
+		envVars.push_back(headerName + "=" + it->second);
+	}
+	
+	return envVars;
+}
+
 // ===================================================================
 // CONTENT HANDLERS
 // ===================================================================
@@ -348,8 +434,27 @@ void MiniHttpResponse::handleRedirection()
 
 void MiniHttpResponse::handleCgi()
 {
-	// CGI implementation placeholder
-	setParseErrorResponse(501); // Not Implemented
+	std::string fsPath = genfsPath(_locationBlock, _request.getPath());
+	
+	if (!pathExists(fsPath)) {
+		return setParseErrorResponse(404);
+	}
+	
+	if (isDirectory(fsPath)) {
+		return setParseErrorResponse(403);
+	}
+	
+	// using shebang cgi so script must be executable
+	if (access(fsPath.c_str(), X_OK) != 0) {
+		return setParseErrorResponse(403);
+	}
+	
+	_socket.cgiPath = fsPath;
+	_socket.cgiEnvs = createCgiEnv();
+	_socket.isCgi = true;
+	
+	_statusCode = 200;
+	_statusMessage = getStatusCodeMsg(_statusCode);
 }
 
 void MiniHttpResponse::handleAutoIndex()

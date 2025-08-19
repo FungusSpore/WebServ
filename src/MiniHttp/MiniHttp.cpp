@@ -1,5 +1,6 @@
 #include <iostream>
 #include "MiniHttp.hpp"
+#include "CGI.hpp"
 #include "Socket.hpp"
 #include <unistd.h>
 #include <sys/socket.h>
@@ -58,48 +59,79 @@ bool MiniHttp::run() {
 	// sendResponse(response);
 	_socket.write_buffer = response.buildResponse();
 
-	// try {
-	//
-	// 	MiniHttpRequest request(_socket);
-	// 	if (!request.parseRequest()) {
-	// 		// maybe socket also need to edge cases where socket reading failed.
-	// 		// Since this just going to return back to main loop if it doesnt have enough request data
-	// 		return false;
-	// 	}
-	//
-	// 	MiniHttpResponse response(_server, request, _socket);
-	// 	response.parseResponse();
-	//
-	// 	// refactor into the write buffer of the socket
-	// 	// sendResponse(response);
-	// 	_socket.write_buffer = response.buildResponse();
-	//
-	// 	// close(_socket.fd);
-	// } catch (const std::exception& e) {
-	// 	std::cerr << "Error in MiniHttp::run(): " << e.what() << std::endl;
-	//
-	// 	// Send a basic 500 error response if possible
-	// 	try {
-	// 		std::string errorResponse = 
-	// 			"HTTP/1.1 500 Internal Server Error\r\n"
-	// 			"Content-Type: text/html\r\n"
-	// 			"Content-Length: 50\r\n"
-	// 			"Connection: close\r\n"
-	// 			"\r\n"
-	// 			"<html><body><h1>500 Internal Server Error</h1></body></html>";
-	//
-	// 		send(_socket.fd, errorResponse.c_str(), errorResponse.length(), 0);
-	// 	} catch (...) {
-	// 		// Ignore any further errors
-	// 	}
-	//
-	// 	// close(_socket.fd);
-	// }
-	return true; // Indicate that the request was processed
+	return true;
+}
+
+std::string MiniHttp::getCgiHeader(std::string& cgiBuffer) {
+	std::string header;
+	std::string::size_type s = cgiBuffer.find("\r\n\r\n");
+	if (s == std::string::npos) {
+		// Try with just \n\n for Unix-style line endings
+		s = cgiBuffer.find("\n\n");
+		if (s == std::string::npos)
+			return header;
+		header = cgiBuffer.substr(0, s + 2);
+		cgiBuffer.erase(0, s + 2);
+	} else {
+		header = cgiBuffer.substr(0, s + 4);
+		cgiBuffer.erase(0, s + 4);
+	}
+	return header;
 }
 
 bool MiniHttp::validateCGI() {
-	// Placeholder for CGI validation logic
-	// This function should check if the request is for a CGI script and validate it accordingly
-	return true; // For now, just return true
+	if (_socket.read_buffer.empty()) {
+		return false;
+	}
+	
+	try {
+		std::string cgiBuffer = _socket.read_buffer;
+		std::string cgiHeaders = getCgiHeader(cgiBuffer);
+		
+		if (cgiHeaders.empty()) {
+			return false;
+		}
+		
+		std::ostringstream response;
+		response << "HTTP/1.1 200 OK\r\n";
+		
+		if (!cgiHeaders.empty()) {
+			size_t headerEndPos = cgiHeaders.find("\r\n\r\n");
+			if (headerEndPos != std::string::npos) {
+				cgiHeaders = cgiHeaders.substr(0, headerEndPos);
+			} else {
+				headerEndPos = cgiHeaders.find("\n\n");
+				if (headerEndPos != std::string::npos) {
+					cgiHeaders = cgiHeaders.substr(0, headerEndPos);
+				}
+			}
+			response << cgiHeaders << "\r\n";
+		}
+		
+		if (cgiHeaders.find("Content-Length:") == std::string::npos && 
+			cgiHeaders.find("content-length:") == std::string::npos) {
+			response << "Content-Length: " << cgiBuffer.size() << "\r\n";
+		}
+		
+		// shouldnt close connection here?
+		// response << "Connection: close\r\n" << "\r\n" << cgiBuffer;
+		
+		_socket.write_buffer = response.str();
+		_socket.read_buffer.clear();
+		
+		std::cout << "CGI response built successfully" << std::endl;
+		return true;
+		
+	} catch (const std::exception& e) {
+		std::cerr << "Error processing CGI output: " << e.what() << std::endl;
+		// dont exit just return eerror code	
+		_socket.write_buffer = "HTTP/1.1 500 Internal Server Error\r\n"
+							   "Content-Type: text/html\r\n"
+							   "Content-Length: 50\r\n"
+							   "Connection: close\r\n"
+							   "\r\n"
+							   "<html><body><h1>500 Internal Server Error</h1></body></html>";
+		_socket.read_buffer.clear();
+		return true;
+	}
 }

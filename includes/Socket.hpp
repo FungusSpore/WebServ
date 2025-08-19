@@ -8,6 +8,7 @@
 
 // class MiniHttp;
 // class Webserver;
+class Epoll;
 
 #define READ_BUFFER_SIZE 8192
 #define WRITE_BUFFER_SIZE 8192
@@ -21,10 +22,13 @@ public:
 	std::string port;
 	std::string read_buffer;
 	std::string write_buffer;
-	// Socket *toSend;
-	// uint32_t	events;
-	// std::vector<char> read_buffer;
-	// std::vector<char> write_buffer;
+
+	bool isCgi;
+	std::string cgiPath;
+	std::vector<std::string> cgiEnvs;
+	std::string cgiBody;
+
+	bool keepAlive;
 
 	Socket(int fd, std::string port, WebServer& server);
 	// Socket(int fd, int forward_fd);
@@ -36,6 +40,7 @@ public:
 
 	bool runHttp();
 	bool validateCGI();
+	bool executeCGI(Epoll& epoll);
 
 	void loadServerKey(int conn_sock);
 	ServerKey& getServerKey() { return _serverKey; }

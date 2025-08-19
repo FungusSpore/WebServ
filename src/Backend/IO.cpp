@@ -14,13 +14,25 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 	if (size > 0)
 		sock.write_buffer.erase(sock.write_buffer.begin(), sock.write_buffer.begin() + size);
 
-	if (sock.write_buffer.empty() && events & EPOLLOUT){
-		events &= ~EPOLLOUT;
-		ev.events = events;
-		ev.data.ptr = &sock;
-		if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.fd, &ev) == -1){
+	if (sock.write_buffer.empty()) {
+		if (events & EPOLLOUT) {
+			events &= ~EPOLLOUT;
+			ev.events = events;
+			ev.data.ptr = &sock;
+			if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.fd, &ev) == -1){
+				epoll.closeSocket(sock);
+				throw SystemFailure("Epoll CTL failed to mod socket");
+			}
+		}
+		
+		// Handle keep-alive
+		if (!sock.keepAlive) {
 			epoll.closeSocket(sock);
-			throw SystemFailure("Epoll CTL failed to mod socket");
+		} else {
+			if (!sock.read_buffer.empty()) {
+				std::cerr << "Warning: Read buffer is not empty after response sent." << "\nread_buffer: " << sock.read_buffer << std::endl;
+			} // should throw an error or handle it differently?
+			sock.read_buffer.clear();
 		}
 	}
 

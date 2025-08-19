@@ -65,21 +65,13 @@ int main(int ac, char **av) {
 						if (mysock->clientFd != -1) {
 							if (mysock->validateCGI())
 								IO::try_write(epoll, myevents.at(i));
-							// std::string cgi_path = "cgi-bin/hello_process.py";
-							// int write_end = CGI::exec(cgi_path.c_str(), ".py", envp, epoll, *mysock);
-							// // dont' need
-							// if (shutdown(write_end, 1) == -1)
-							// 	throw SystemFailure("shutdown failed");
-							// mysock->read_buffer.erase();
 						}
 						else {
 							if (mysock->runHttp()) 
 								IO::try_write(epoll, myevents.at(i));
-
-							// mysock->write_buffer = mysock->read_buffer;
-							// mysock->read_buffer.erase();
-							// std::cout << "fd " << mysock->fd << mysock->write_buffer << std::endl;
-							// IO::try_write(epoll, myevents.at(i));
+							else if (mysock->isCgi && !mysock->executeCGI(epoll)) {
+								IO::try_write(epoll, myevents.at(i));
+							}
 						}
 					}
 				}
