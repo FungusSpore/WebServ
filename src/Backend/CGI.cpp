@@ -27,7 +27,7 @@ int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 		dup2(sv[1], STDOUT_FILENO);
 		dup2(sv[1], STDIN_FILENO);
 		close(sv[1]);
-		execve(interpreter.c_str(), argv, envp); // no need to check return value, it will exit if it fails - compile error
+		execve(argv[0], argv, envp); // no need to check return value, it will exit if it fails - compile error 
 		exit(1);
 	default:
 		close(sv[1]);
@@ -38,7 +38,6 @@ int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 	delete[] argv;
 	return (sv[0]);
 }
-
 
 std::string extractHeader(std::string& read_buffer){
 	std::string header;

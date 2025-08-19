@@ -35,6 +35,7 @@ private:
 	// === Header Management ===
 	void parseDefaultHeader();
 	bool hasHeader(const std::string& key) const;
+	std::string getHeaderValue(const std::string& key) const;
 
 	// === Content Handlers ===
 	void handleRedirection();
@@ -49,6 +50,7 @@ private:
 	std::string buildAutoIndexBody(const std::string& fsPath) const;
 	std::string genfsPath(const Location* locationBlock, const std::string& path);
 	bool handleSlashRedirect();
+	std::vector<std::string> createCgiEnv();
 
 private:
 	// Prevent copying (C++98 style)

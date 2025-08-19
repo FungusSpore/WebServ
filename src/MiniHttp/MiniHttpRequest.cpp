@@ -270,11 +270,14 @@ bool MiniHttpRequest::parseRequest() {
 		if (!loadHeader())
 			return false;
 		std::cout << "HTTP header loaded." << std::endl;
+		std::cout << "\n_buffer: " << _buffer << std::endl;
 		parseHeader();
 		std::cout << "Parsed HTTP header." << std::endl;
 		// shouldnt throw but should return error response
 		_isHeaderLoaded = true;
 	}
+
+	_socket.keepAlive = !(getHeaderValue("Connection") == "close");
 	
 	getBodyType(isChunked, contentLength);
 	if (!loadBody(isChunked, contentLength))
