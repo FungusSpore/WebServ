@@ -1,4 +1,5 @@
 #include "../../includes/SocketRegistry.hpp"
+#include "WebServer.hpp"
 
 SocketRegistry::SocketRegistry(){}
 
@@ -9,13 +10,13 @@ SocketRegistry::~SocketRegistry(){
 	}
 }
 
-Socket*	SocketRegistry::makeSocket(int fd, std::string port){
-	this->registry.push_back( Socket(fd, port) );
+Socket*	SocketRegistry::makeSocket(int fd, std::string port, WebServer& server) {
+	this->registry.push_back( Socket(fd, port, server) );
 	return (&this->registry.back());
 }
 
-Socket*	SocketRegistry::makeSocket(int fd,  int clientFd){
-	this->registry.push_back( Socket(fd, clientFd) );
+Socket*	SocketRegistry::makeSocket(int fd,  int clientFd, WebServer& server) {
+	this->registry.push_back( Socket(fd, clientFd, server) );
 	return (&this->registry.back());
 }
 
@@ -25,7 +26,7 @@ void		SocketRegistry::removeSocket(const Socket& toBeRemoved){
 		throw ObjectNotFound("No such socket");
 	// delete *it;
 	close(it->fd);
-	registry.erase(it);
+	// registry.erase(it); // this causing double free because already got popback?
 }
 
 bool		SocketRegistry::searchSocket(const Socket& other){

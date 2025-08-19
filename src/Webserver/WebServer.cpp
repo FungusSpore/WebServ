@@ -106,6 +106,14 @@ const Server* WebServer::matchServer(const ServerKey& key) const {
 	// 			return (&it->second);
 	// 	}
 	// }
+	
+	// std::cout << "Available servers:\n";
+	// for (std::map<ServerKey, Server>::const_iterator pair = _serverMap.begin();
+	//      pair != _serverMap.end(); ++pair) {
+		// std::cout << "IP: " << pair->first._ip
+		//           << ", Port: " << pair->first._port
+		//           << ", ServerName: " << pair->first._serverName << "\n";
+	// }
 	std::map<ServerKey, Server>::const_iterator it = _serverMap.find(key);
 
 	if (it != _serverMap.end())

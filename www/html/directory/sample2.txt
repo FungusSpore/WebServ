@@ -1,0 +1,7 @@
+Another test file for autoindex demonstration.
+
+This file contains some sample content to verify
+that your web server can serve static files correctly
+from subdirectories.
+
+Created for testing purposes.
