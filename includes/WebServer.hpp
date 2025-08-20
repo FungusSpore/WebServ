@@ -24,6 +24,7 @@ public:
 
 	const Server* matchServer(const ServerKey& key) const;
 	const std::vector<std::string>& getPorts() const;
+	long getClientTimeout(const std::string& port) const;
 };
 
 #endif // !WEBSERVER_HPP
