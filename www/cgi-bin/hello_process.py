@@ -2,6 +2,7 @@
 import cgi
 
 # Always output headers first, then exactly one blank line
+# Send an HTTP header indicating the content type as HTML
 print("Content-type: text/html\r\n\r\n")
 
 print("<html><body style='text-align:center;'>")

@@ -37,6 +37,8 @@ int main(int ac, char **av) {
 	try {
 		WebServer ProphetServer(av[1]);
 
+		for (size_t i = 0; i < ProphetServer.getPorts().size(); i++)
+			std::cout << ProphetServer.getPorts().at(i) << std::endl;
 		Epoll epoll(ProphetServer.getPorts(), ProphetServer);
 
 		std::cout << "WebServer started. Press Ctrl+C to shut down." << std::endl;
