@@ -112,7 +112,6 @@ void MiniHttpResponse::parseErrorResponse() {
 
 	const std::string* errorPagePath = _serverBlock->getErrorPagePath(_statusCode);
 	if (errorPagePath) {
-		std::cout << "shouldnt be here" << std::endl;
 		const Location* errorLocation = _serverBlock->matchLocation("/error_pages");
 		std::string fsPath;
 		

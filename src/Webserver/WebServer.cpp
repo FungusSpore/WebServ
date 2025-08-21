@@ -124,3 +124,12 @@ const Server* WebServer::matchServer(const ServerKey& key) const {
 const std::vector<std::string>& WebServer::getPorts() const {
 	return (_ports);
 }
+
+long WebServer::getClientTimeout(const std::string& port) const {
+	std::map<ServerKey, Server>::const_iterator it = _serverMap.begin();
+
+	for (; it != _serverMap.end(); it++)
+		if (it->first._port == port)
+			return it->second.getClientTimeout();
+	return (-1);
+}
