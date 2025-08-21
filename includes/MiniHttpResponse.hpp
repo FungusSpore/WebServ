@@ -9,14 +9,12 @@
 
 class MiniHttpResponse {
 private:
-	// Core dependencies
 	WebServer& _server;
 	const Server* _serverBlock;
 	const Location* _locationBlock;
 	MiniHttpRequest& _request;
 	Socket& _socket;
 
-	// Response data
 	int _statusCode;
 	std::string _statusMessage;
 	std::string _body;
@@ -53,7 +51,6 @@ private:
 	std::vector<std::string> createCgiEnv();
 
 private:
-	// Prevent copying (C++98 style)
 	MiniHttpResponse(const MiniHttpResponse& other);
 	MiniHttpResponse& operator=(const MiniHttpResponse& other);
 
@@ -61,7 +58,6 @@ public:
 	MiniHttpResponse(WebServer& server, MiniHttpRequest& request, Socket& socket);
 	~MiniHttpResponse();
 
-	// Main interface
 	void parseResponse();
 	std::string buildResponse();
 };

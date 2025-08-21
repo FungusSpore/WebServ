@@ -42,18 +42,17 @@ MiniHttp::~MiniHttp() {
 
 
 bool MiniHttp::run() {
-	std::cout << "MiniHttp::run() called for socket fd: " << _socket.fd << std::endl;
 	MiniHttpRequest request(_socket);
 	if (!request.parseRequest()) {
 		// maybe socket also need to edge cases where socket reading failed.
 		// Since this just going to return back to main loop if it doesnt have enough request data
 		return false;
 	}
-	std::cout << "Parsed HTTP request successfully." << std::endl;
+	// std::cout << "Parsed HTTP request successfully." << std::endl;
 
 	MiniHttpResponse response(_server, request, _socket);
 	response.parseResponse();
-	std::cout << "Parsed HTTP response successfully." << std::endl;
+	// std::cout << "Parsed HTTP response successfully." << std::endl;
 
 	// refactor into the write buffer of the socket
 	// sendResponse(response);
@@ -85,9 +84,10 @@ bool MiniHttp::validateCGI() {
 	}
 	
 	try {
+		// std::cout << "Validating CGI output..." << std::endl;
 		std::string cgiBuffer = _socket.read_buffer;
 		std::string cgiHeaders = getCgiHeader(cgiBuffer);
-		
+
 		if (cgiHeaders.empty()) {
 			return false;
 		}
@@ -112,14 +112,17 @@ bool MiniHttp::validateCGI() {
 			cgiHeaders.find("content-length:") == std::string::npos) {
 			response << "Content-Length: " << cgiBuffer.size() << "\r\n";
 		}
-		
+
 		// shouldnt close connection here?
 		// response << "Connection: close\r\n" << "\r\n" << cgiBuffer;
+		response << "\r\n" << cgiBuffer;
 		
 		_socket.write_buffer = response.str();
 		_socket.read_buffer.clear();
-		
-		std::cout << "CGI response built successfully" << std::endl;
+
+		// std::cout << "CGI response: " << _socket.write_buffer << std::endl;
+		//
+		// std::cout << "CGI response built successfully" << std::endl;
 		return true;
 		
 	} catch (const std::exception& e) {

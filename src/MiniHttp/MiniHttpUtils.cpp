@@ -222,7 +222,7 @@ std::string joinPath(const std::string& a, const std::string& b) {
 std::string normalizeUnderRoot(const std::string& root, const std::string& path) {
 	// Normalize the path under the given root directory with handling of '.', '..', and empty components.
 	
-	std::cout << "Normalizing path: " << path << " under root: " << root << std::endl;
+	// std::cout << "Normalizing path: " << path << " under root: " << root << std::endl;
 
 	std::vector<std::string> components;
 	std::istringstream iss(path);
