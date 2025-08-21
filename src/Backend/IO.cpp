@@ -10,7 +10,7 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 		size = send(sock.fd, sock.write_buffer.c_str(), sock.write_buffer.size(), MSG_NOSIGNAL);
 	else
 		size = send(sock.clientFd, sock.write_buffer.c_str(), sock.write_buffer.size(), MSG_NOSIGNAL);
-
+	epoll.resetSocketTimer(sock);
 	if (size > 0)
 		sock.write_buffer.erase(sock.write_buffer.begin(), sock.write_buffer.begin() + size);
 
@@ -54,6 +54,7 @@ int	IO::try_read(Epoll& epoll, struct epoll_event& event){
 
 	while (true){
 		size = recv(sock.fd, buffer, READ_BUFFER, 0);
+		epoll.resetSocketTimer(sock);
 		if (size > 0)
 			sock.read_buffer.insert(sock.read_buffer.end(), buffer, buffer+size);
 		else if (size == -1) // assume EAGAIN

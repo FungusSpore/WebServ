@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #define MAX_EVENTS 10
+#define EPOLL_TIMEOUT 5
 #define LISTEN_BACKLOG 128
 #define READ_BUFFER 2048
 
@@ -43,6 +44,7 @@ public:
 	int get_epollfd() const;
 	void closeSocket(Socket& other);
 	Socket* makeClientSocket(int fd, int clientFd);
+	void	resetSocketTimer(Socket& other);
 };
 
 #endif

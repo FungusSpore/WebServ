@@ -1,6 +1,7 @@
 #include "../../includes/Epoll.hpp"
 #include "../../includes/Utils.hpp"
 #include "../../includes/WebServer.hpp"
+#include <cerrno>
 #include <cstddef>
 
 /// To setup what type of socket is needed
@@ -70,9 +71,16 @@ Epoll::Epoll(const std::vector<std::string> port_list, WebServer& prophetServer)
 Epoll::~Epoll(){ close(_epollfd); }
 
 void	Epoll::get_new_events(){
-		_nfds = epoll_wait(_epollfd, _events, MAX_EVENTS, -1);
-		if (_nfds == -1) throw SystemFailure("Epoll wait failed");
-		_idx = 0;
+	for (;;){
+		_nfds = epoll_wait(_epollfd, _events, MAX_EVENTS, EPOLL_TIMEOUT);
+		if (_nfds == -1 && errno != EINTR)
+			throw SystemFailure("Epoll wait failed");
+		else if (_nfds == 0)
+			_clientRegistry.cleanRegistry();
+		else
+			break ;
+	}
+	_idx = 0;
 }
 
 std::vector<struct epoll_event> Epoll::get_conn_sock(){
@@ -115,6 +123,10 @@ Socket* Epoll::makeClientSocket(int fd, int clientFd){
 
 void Epoll::closeSocket(Socket& other){
 	_clientRegistry.removeSocket(other);
+}
+
+void	Epoll::resetSocketTimer(Socket& other){
+	_clientRegistry.resetSocketTimer(other);
 }
 
 // #include <iostream>
