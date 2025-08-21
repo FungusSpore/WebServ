@@ -1,39 +1,75 @@
 #include "../../includes/SocketRegistry.hpp"
 #include "WebServer.hpp"
+#include <vector>
 
 SocketRegistry::SocketRegistry(){}
 
-SocketRegistry::~SocketRegistry(){
-	while (!registry.empty()){
-		removeSocket(registry.back());
-		registry.pop_back();
+SocketRegistry::SocketRegistry(WebServer& prophetServer){
+	std::vector<std::string> port_list = prophetServer.getPorts();
+	for (size_t i = 0; i < port_list.size(); i++){
+		std::string port = port_list.at(i);
+		_clientTimeoutMap[port] = prophetServer.getClientTimeout(port);
 	}
 }
 
+SocketRegistry::~SocketRegistry(){
+	_registryIterator it = _registry.begin();
+	for (; it != _registry.end(); it++){
+		close((*it)->fd);
+		delete (*it);
+	}
+	_registry.clear();
+}
+
 Socket*	SocketRegistry::makeSocket(int fd, std::string port, WebServer& server) {
-	this->registry.push_back( Socket(fd, port, server) );
-	return (&this->registry.back());
+	Socket* temp = new Socket( fd, port, server );
+	_registry.insert( temp );
+	return (temp);
 }
 
 Socket*	SocketRegistry::makeSocket(int fd,  int clientFd, WebServer& server) {
-	this->registry.push_back( Socket(fd, clientFd, server) );
-	return (&this->registry.back());
+	Socket* temp = new Socket( fd, clientFd, server );
+	_registry.insert( temp );
+	return (temp);
 }
 
-void		SocketRegistry::removeSocket(const Socket& toBeRemoved){
-	std::list<Socket>::iterator it = std::find(registry.begin(), registry.end(), toBeRemoved);
-	if (it == registry.end())
-		throw ObjectNotFound("No such socket");
-	// delete *it;
-	close(it->fd);
-	// registry.erase(it); // this causing double free because already got popback?
+void		SocketRegistry::removeSocket(Socket& toBeRemoved){
+	toBeRemoved.is_alive = false;
+	close(toBeRemoved.fd);
 }
 
-bool		SocketRegistry::searchSocket(const Socket& other){
-	std::list<Socket>::iterator it = std::find(registry.begin(), registry.end(), other);
-	if (it == registry.end())
+bool		SocketRegistry::searchSocket(const Socket* other){
+	_registryIterator it = std::find(_registry.begin(), _registry.end(), other);
+	if (it == _registry.end())
 		return false;
 	return true;
+}
+
+void		SocketRegistry::timeoutSocket(Socket& other){
+	long serverTimeoutValue = _clientTimeoutMap[other.port];
+	if (time(NULL) - other.last_active >= serverTimeoutValue){
+		close(other.fd);
+		other.is_alive = false;
+	}
+}
+
+void		SocketRegistry::resetSocketTimer(Socket& other){
+	other.last_active = time(NULL);
+	_registry.erase(&other);
+	_registry.insert(&other);
+}
+
+void		SocketRegistry::cleanRegistry(){
+	_registryIterator it = _registry.begin();
+	for(;it != _registry.end();){
+		timeoutSocket(**it);
+		if ((*it)->is_alive)
+			return ;
+		Socket* toBeRemoved = *it;
+		it++;
+		_registry.erase(toBeRemoved);
+		delete(toBeRemoved);
+	}
 }
 
 SocketRegistry::ObjectNotFound::ObjectNotFound(std::string msg):msg(msg){}
