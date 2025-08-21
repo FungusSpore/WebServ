@@ -53,6 +53,12 @@ void		SocketRegistry::timeoutSocket(Socket& other){
 	}
 }
 
+void		SocketRegistry::resetSocketTimer(Socket& other){
+	other.last_active = time(NULL);
+	_registry.erase(&other);
+	_registry.insert(&other);
+}
+
 void		SocketRegistry::cleanRegistry(){
 	_registryIterator it = _registry.begin();
 	for(;it != _registry.end();){

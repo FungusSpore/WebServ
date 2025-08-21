@@ -34,6 +34,7 @@ public:
 	void		removeSocket(Socket& toBeRemoved);
 	bool		searchSocket(const Socket* other);
 	void		timeoutSocket(Socket& other);
+	void		resetSocketTimer(Socket& other);
 	void		cleanRegistry();
 
 
