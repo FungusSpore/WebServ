@@ -1,6 +1,7 @@
 #include "MiniHttpResponse.hpp"
 #include "MiniHttpUtils.hpp"
 #include "Socket.hpp"
+#include <cstddef>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -104,9 +105,15 @@ void MiniHttpResponse::parseErrorResponse() {
 		_statusMessage = getStatusCodeMsg(_statusCode);
 	}
 
+	if (!_serverBlock) {
+		defaultErrorResponse();
+		return;
+	}
+
 	const std::string* errorPagePath = _serverBlock->getErrorPagePath(_statusCode);
 	if (errorPagePath) {
-		const Location* errorLocation = _serverBlock->matchLocation("/error_pages/");
+		std::cout << "shouldnt be here" << std::endl;
+		const Location* errorLocation = _serverBlock->matchLocation("/error_pages");
 		std::string fsPath;
 		
 		if (!errorLocation) {
@@ -555,12 +562,26 @@ void MiniHttpResponse::handleProxyPass()
 
 void MiniHttpResponse::parseResponse()
 {
-	std::cout << "Validating server configuration..." << std::endl;
-	if (!validateServerConf()) {
-		std::cout << "Server configuration validation failed with status code: " << _statusCode << std::endl;
+	_statusCode = _request.getErrorCode();
+	if (_statusCode > 0 && _statusCode != 200) {
+		std::cout << "Request error detected with status code: " << _statusCode << std::endl;
 		return parseErrorResponse();
 	}
-	std::cout << "Server configuration validated successfully." << std::endl;
+
+	// std::cout << "Validating server configuration..." << std::endl;
+	if (!validateServerConf()) {
+		// std::cout << "Server configuration validation failed with status code: " << _statusCode << std::endl;
+		return parseErrorResponse();
+	}
+	// std::cout << "Server configuration validated successfully." << std::endl;
+
+	// check maxbodyszie here? not the best but not the worst?
+	// std::cout << "Client max body size: " << _locationBlock->getClientMaxBodySize() << std::endl;
+	// std::cout << "Server max body size: " << _serverBlock->getClientMaxBodySize() << std::endl;
+	if (_locationBlock->getClientMaxBodySize() > 0 && 
+		_request.getBody().size() > static_cast<std::size_t>(_locationBlock->getClientMaxBodySize())) {
+		return setParseErrorResponse(413);
+	}
 
 	// Route to appropriate handler based on location mode
 	switch (_locationBlock->getLocationMode()) {
@@ -598,6 +619,7 @@ std::string MiniHttpResponse::buildResponse()
 	std::cout << "Status Message: " << _statusMessage << std::endl;
 	std::cout << "Request Method: " << _request.getMethod() << std::endl;
 	std::cout << "Request Path: " << _request.getPath() << std::endl;
+	std::cout << "===End===\n" << std::endl;
 
 	// Ensure valid status code and message
 	if (_statusCode < 100 || _statusCode >= 600) {
@@ -627,7 +649,6 @@ std::string MiniHttpResponse::buildResponse()
 		response << _body;
 	}
 	
-	std::cout << "\n\nDebug Response:\n" << response.str() << "\n\nEnd Debug.\n" << std::endl;
+	// std::cout << "\n\nDebug Response:\n" << response.str() << "\n\nEnd Debug.\n" << std::endl;
 	return response.str();
 }
-

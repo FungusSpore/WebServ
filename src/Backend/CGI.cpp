@@ -39,8 +39,7 @@ int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 	return (sv[0]);
 }
 
-
-std::string CGI::extractHeader(std::string& read_buffer){
+std::string extractHeader(std::string& read_buffer){
 	std::string header;
 
 	std::string::size_type s = read_buffer.find("\r\n\r\n");
@@ -61,14 +60,13 @@ std::string CGI::extractHeader(std::string& read_buffer){
 //				-> if can't send all go next
 //				-> else remove EPOLLOUT
 
-
 // int main(int argc, char **argv, char **envp){
 // 	try {
 // 		(void)argc;
 // 		(void)argv;
 // 		std::vector<std::string> port; 
-// 		// port.push_back("12346");
-// 		port.push_back("12345");
+// 		port.push_back("12346");
+// 		// port.push_back("12345");
 // 		Epoll epoll(port);
 //
 // 		for (;;){
@@ -87,11 +85,11 @@ std::string CGI::extractHeader(std::string& read_buffer){
 // 					continue ;
 // 				}
 // 				if (events & EPOLLIN){
+// 					std::cout << "EPOLLIN" << std::endl;
 // 					// act like process
 // 					if (IO::try_read(epoll, myevents.at(i)) != -1){
 // 						// GET
 // 						if (mysock->read_buffer.at(0) == 'G'){
-// 							std::cout << "get" << std::endl;
 // 							std::ifstream file("public/hello_form.html");
 // 							if (!file.is_open()){
 // 								std::cerr << "html fail to open" << std::endl;
@@ -117,7 +115,7 @@ std::string CGI::extractHeader(std::string& read_buffer){
 // 						}
 // 						// POST
 // 						else if (mysock->read_buffer.at(0) == 'P'){
-// 							std::string cgi_path = "cgi-bin/tic-tac-toe.py";
+// 							std::string cgi_path = "cgi-bin/hello_process.py";
 // 							int write_end = CGI::exec(cgi_path.c_str(), envp, epoll, *mysock);
 // 							write(write_end, mysock->read_buffer.c_str(), mysock->read_buffer.size());
 // 							if (shutdown(write_end, 1) == -1)
@@ -126,11 +124,9 @@ std::string CGI::extractHeader(std::string& read_buffer){
 // 						}
 //
 // 						else {
-// 							std::cout << mysock->read_buffer << std::endl;
 // 							std::string header = CGI::extractHeader(mysock->read_buffer);
 // 							if (header.size() == 0) // error
 // 								continue;
-// 							std::cout << header << std::endl;
 //
 // 							mysock->write_buffer = 
 // 									"HTTP/1.1 200 OK\r\n"
@@ -138,7 +134,6 @@ std::string CGI::extractHeader(std::string& read_buffer){
 // 									header +
 // 									mysock->read_buffer;
 //
-// 							std::cout << mysock->write_buffer << std::endl;
 // 							mysock->read_buffer.erase();
 // 							std::cout << "fd " << mysock->fd << mysock->write_buffer << std::endl;
 // 							IO::try_write(epoll, myevents.at(i));

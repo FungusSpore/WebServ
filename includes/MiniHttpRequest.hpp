@@ -13,6 +13,7 @@ private:
 	std::multimap<std::string, std::string> _headers;
 	// int _socket_fd;
 	bool _isHeaderLoaded;
+	int _isErrorCode;
 
 	bool loadHeader();
 	void parseHeader();
@@ -41,6 +42,7 @@ public:
 	const std::string& getBody() const;
 	const std::string& getTrailer() const;
 	const std::multimap<std::string, std::string>& getHeaders() const;
+	int getErrorCode() const;
 
 	// Setters
 	// void setMethod(const std::string& method);
