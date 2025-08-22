@@ -6,12 +6,11 @@
 int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 	int sv[2];
 	std::string interpreter;
-	char **argv;
+	std::vector<char*> argv;
 	struct epoll_event ev;
 
-	argv = new char*[2];
-	argv[0] = const_cast<char *>(cgi_path);
-	argv[1] = NULL;
+	argv.push_back(const_cast<char*>(cgi_path));
+	argv.push_back(NULL);
 
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0, sv) == -1)
 		throw SystemFailure("cgi socketpair failed");
@@ -27,7 +26,7 @@ int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 		dup2(sv[1], STDOUT_FILENO);
 		dup2(sv[1], STDIN_FILENO);
 		close(sv[1]);
-		execve(argv[0], argv, envp); // no need to check return value, it will exit if it fails - compile error 
+		execve(argv[0], &argv[0], envp); // no need to check return value, it will exit if it fails - compile error 
 		exit(1);
 	default:
 		close(sv[1]);
@@ -35,7 +34,6 @@ int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 		ev.data.ptr = epoll.makeClientSocket(sv[0], client.fd);
 		epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_ADD, sv[0], &ev);
 	}
-	delete[] argv;
 	return (sv[0]);
 }
 
