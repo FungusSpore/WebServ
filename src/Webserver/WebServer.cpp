@@ -75,6 +75,7 @@ WebServer::WebServer(const char* filename) {
 				throw (Parser::ParseErrorException(msg));
 			}
 		}
+		_ports.push_back(serv_key._port);
 		_serverKeys.push_back(serv_key);
 		_serverMap.insert(std::pair<ServerKey, Server>(serv_key, serv));
 	}
