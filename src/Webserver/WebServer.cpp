@@ -67,12 +67,15 @@ WebServer::WebServer(const char* filename) {
 	for ( ; it_servers != servers.end(); ++it_servers) {
 		Server serv(*it_servers);
 		ServerKey serv_key(serv.getIp(), serv.getPort(), serv.getServerName());
-		if (std::find(_ports.begin(), _ports.end(), serv.getPort()) == _ports.end())
-			_ports.push_back(serv.getPort());
-		else {
-			std::string msg = "port " + serv.getPort() + " has already been assigned";
-			throw (Parser::ParseErrorException(msg));
+		std::vector<ServerKey>::const_iterator it = _serverKeys.begin();
+		for ( ; it != _serverKeys.end(); ++it) {
+			if (serv_key._port == it->_port && serv_key._serverName == it->_serverName) {
+				std::string msg = "duplicate port " + serv_key._port
+					+ " and server_name " + serv_key._serverName;
+				throw (Parser::ParseErrorException(msg));
+			}
 		}
+		_serverKeys.push_back(serv_key);
 		_serverMap.insert(std::pair<ServerKey, Server>(serv_key, serv));
 	}
 }
