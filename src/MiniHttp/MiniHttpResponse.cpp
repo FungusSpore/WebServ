@@ -458,6 +458,7 @@ void MiniHttpResponse::handleCgi()
 	_socket.cgiPath = fsPath;
 	_socket.cgiEnvs = createCgiEnv();
 	_socket.isCgi = true;
+	_socket.cgiBody = _request.getBody();
 	
 	_statusCode = 200;
 	_statusMessage = getStatusCodeMsg(_statusCode);

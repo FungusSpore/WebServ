@@ -16,12 +16,12 @@ struct SocketPtrComparator {
 	}
 };
 
-typedef std::set<Socket*>::iterator _registryIterator;
-typedef std::set<Socket*>::const_iterator _registryConstIterator;
+typedef std::multiset<Socket*, SocketPtrComparator>::iterator _registryIterator;
+typedef std::multiset<Socket*, SocketPtrComparator>::const_iterator _registryConstIterator;
 
 class SocketRegistry{
 private:
-	std::set<Socket*, SocketPtrComparator> _registry;
+	std::multiset<Socket*, SocketPtrComparator> _registry;
 	std::map<std::string, long> _clientTimeoutMap;
 public:
 	SocketRegistry();
