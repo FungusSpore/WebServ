@@ -1,5 +1,6 @@
 #include "MiniHttpResponse.hpp"
 #include "MiniHttpUtils.hpp"
+#include "Server.hpp"
 #include "Socket.hpp"
 #include <cstddef>
 #include <iostream>
@@ -10,7 +11,7 @@
 #include <strings.h>
 
 MiniHttpResponse::MiniHttpResponse(WebServer& server, MiniHttpRequest& request, Socket& socket)
-	: _server(server), _serverBlock(0), _locationBlock(0), _request(request), _socket(socket), _statusCode(-1), _statusMessage(""), _body(""), _headers() {}
+	: _server(server), _serverBlock(0), _locationBlock(0), _request(request), _socket(socket), _statusCode(-1), _statusMessage(""), _body(), _headers() {}
 
 MiniHttpResponse::~MiniHttpResponse() {}
 
@@ -66,6 +67,29 @@ bool MiniHttpResponse::validateServerConf() {
 	return true;
 }
 
+bool MiniHttpResponse::validateClientMaxBodySize() {
+	std::size_t maxBodySize = _serverBlock->getClientMaxBodySize() > DEFAULT_CLIENT_MAX_BODY_SIZE
+							? _serverBlock->getClientMaxBodySize() : DEFAULT_CLIENT_MAX_BODY_SIZE;
+
+	if (_request.getBody().size() > maxBodySize) {
+		return false;
+	}
+	return true;
+}
+
+bool MiniHttpResponse::validateHeaderSize() {
+	std::size_t totalHeaderSize = 0;
+	const std::multimap<std::string, std::string>& headers = _request.getHeaders();
+	for (std::multimap<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+		totalHeaderSize += it->first.size() + it->second.size() + 4; // +4 for ": " and "\r\n"
+	}
+
+	if (totalHeaderSize > DEFAULT_MAX_HEADER_SIZE) {
+		return false;
+	}
+	return true;
+}
+
 // ===================================================================
 // ERROR HANDLING
 // ===================================================================
@@ -85,7 +109,7 @@ void MiniHttpResponse::setParseErrorResponse(int statusCode) {
 }
 
 void MiniHttpResponse::defaultErrorResponse() {
-	_body = "<!DOCTYPE html>\n<html>\n<head>\n"
+	std::string bodyStr = "<!DOCTYPE html>\n<html>\n<head>\n"
 			"    <meta charset=\"utf-8\">\n"
 			"    <title>" + ft_toString(_statusCode) + " " + _statusMessage + "</title>\n"
 			"</head>\n<body>\n"
@@ -93,6 +117,7 @@ void MiniHttpResponse::defaultErrorResponse() {
 			"    <p>Default Error Page.</p>\n"
 			"</body>\n</html>\n";
 
+	_body.assign(bodyStr.begin(), bodyStr.end());
 	_headers.push_back(std::make_pair("Content-Type", "text/html; charset=utf-8"));
 	_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
 }
@@ -155,8 +180,8 @@ void MiniHttpResponse::parseDefaultHeader()
 	if (!hasHeader("Content-Type"))
 		defaults.push_back(std::make_pair("Content-Type", "text/html; charset=utf-8"));
 
-	if (!hasHeader("Content-Length"))
-		defaults.push_back(std::make_pair("Content-Length", "0"));
+	// if (!hasHeader("Content-Length"))
+	// 	defaults.push_back(std::make_pair("Content-Length", "0"));
 
 	if (!_socket.keepAlive) {
 		defaults.push_back(std::make_pair("Connection", "close"));
@@ -266,7 +291,7 @@ void MiniHttpResponse::handleFileRequest(const std::string& fsPath)
 	_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
 }
 
-std::string MiniHttpResponse::buildAutoIndexBody(const std::string& fsPath) const
+std::vector<char> MiniHttpResponse::buildAutoIndexBody(const std::string& fsPath) const
 {
 	std::ostringstream indexBody;
 	indexBody << "<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\">"
@@ -277,7 +302,8 @@ std::string MiniHttpResponse::buildAutoIndexBody(const std::string& fsPath) cons
 	if (!dir) {
 		indexBody << "<p>Error opening directory: " << fsPath << "</p>\n"
 				  << "</body>\n</html>\n";
-		return indexBody.str();
+		std::string retStr(indexBody.str());
+		return std::vector<char>(retStr.begin(), retStr.end());
 	}
 	
 	for (dirent* e; (e = readdir(dir)) != NULL;) {
@@ -297,7 +323,8 @@ std::string MiniHttpResponse::buildAutoIndexBody(const std::string& fsPath) cons
 
 	closedir(dir);
 	indexBody << "    </ul>\n</body>\n</html>\n";
-	return indexBody.str();
+	std::string retStr(indexBody.str());
+	return std::vector<char>(retStr.begin(), retStr.end());
 }
 
 std::vector<std::string> MiniHttpResponse::createCgiEnv()
@@ -395,11 +422,12 @@ void MiniHttpResponse::handleRedirection()
 		}
 		
 		const std::string& redirBody = _locationBlock->getAddress();
-		_body = "<!DOCTYPE html>\n<html>\n<head>\n"
+		std::string bodyStr = "<!DOCTYPE html>\n<html>\n<head>\n"
 				"    <meta charset=\"utf-8\">\n"
 				"    <p>" + redirBody + "</p>\n"
 				"</body>\n</html>\n";
 		
+		_body.assign(bodyStr.begin(), bodyStr.end());
 		_headers.push_back(std::make_pair("Content-Type", "text/html; charset=utf-8"));
 		_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
 		return;
@@ -421,7 +449,7 @@ void MiniHttpResponse::handleRedirection()
 
 	if (_request.getMethod() != "HEAD") {
 		std::string reason = getStatusCodeMsg(_statusCode);
-		_body = "<!DOCTYPE html>\n<html>\n<head>\n"
+		std::string bodyStr = "<!DOCTYPE html>\n<html>\n<head>\n"
 				"    <meta charset=\"utf-8\">\n"
 				"    <title>" + ft_toString(_statusCode) + " " + reason + "</title>\n"
 				"</head>\n<body>\n"
@@ -429,6 +457,7 @@ void MiniHttpResponse::handleRedirection()
 				"    <p>The document has moved to <a href=\"" + redirAddr + "\">" + redirAddr + "</a>.</p>\n"
 				"</body>\n</html>\n";
 
+		_body.assign(bodyStr.begin(), bodyStr.end());
 		_headers.push_back(std::make_pair("Content-Type", "text/html; charset=utf-8"));
 		_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
 	} else {
@@ -568,21 +597,22 @@ void MiniHttpResponse::parseResponse()
 		return parseErrorResponse();
 	}
 
-	// std::cout << "Validating server configuration..." << std::endl;
+	std::cout << "validating server configuration..." << std::endl;
 	if (!validateServerConf()) {
-		// std::cout << "Server configuration validation failed with status code: " << _statusCode << std::endl;
 		return parseErrorResponse();
 	}
-	// std::cout << "Server configuration validated successfully." << std::endl;
 
-	// check maxbodyszie here? not the best but not the worst?
-	// std::cout << "Client max body size: " << _locationBlock->getClientMaxBodySize() << std::endl;
-	// std::cout << "Server max body size: " << _serverBlock->getClientMaxBodySize() << std::endl;
-	if (_locationBlock->getClientMaxBodySize() > 0 && 
-		_request.getBody().size() > static_cast<std::size_t>(_locationBlock->getClientMaxBodySize())) {
+	std::cout << "validating header size..." << std::endl;
+
+	if (!validateHeaderSize()) {
+		return setParseErrorResponse(431);
+	}
+
+	if (!validateClientMaxBodySize()) {
 		return setParseErrorResponse(413);
 	}
 
+	
 	// Route to appropriate handler based on location mode
 	switch (_locationBlock->getLocationMode()) {
 		case REDIRECTION:
@@ -609,7 +639,7 @@ void MiniHttpResponse::parseResponse()
 	parseDefaultHeader();
 }
 
-std::string MiniHttpResponse::buildResponse()
+std::vector<char> MiniHttpResponse::buildResponse()
 {
 	std::ostringstream response;
 	
@@ -632,23 +662,37 @@ std::string MiniHttpResponse::buildResponse()
 	
 	// Build HTTP response
 	response << "HTTP/1.1 " << _statusCode << " " << _statusMessage << "\r\n";
-	
-	for (std::vector<std::pair<std::string, std::string> >::const_iterator it = _headers.begin();
-		 it != _headers.end(); ++it) {
-		response << it->first << ": " << it->second << "\r\n";
-	}
-	
-	response << "\r\n";
-	
+
 	// maybe can remove HEAD and just check if body not empty add Content-Length
 	if (_request.getMethod() != "HEAD" && !_body.empty()) {
 		// if its not a HEAD request, append the body do i need to add a Content-Length header?
 		if (!hasHeader("Content-Length")) {
 			_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
 		}
-		response << _body;
 	}
 	
-	// std::cout << "\n\nDebug Response:\n" << response.str() << "\n\nEnd Debug.\n" << std::endl;
-	return response.str();
+	for (std::vector<std::pair<std::string, std::string> >::const_iterator it = _headers.begin();
+		 it != _headers.end(); ++it) {
+		response << it->first << ": " << it->second << "\r\n";
+	}
+
+	if (!_body.empty()){
+		response << "\r\n" << std::string(_body.begin(), _body.end());
+	} else {
+		response << "\r\n";
+	}
+	
+	// maybe can remove HEAD and just check if body not empty add Content-Length
+	// if (_request.getMethod() != "HEAD" && !_body.empty()) {
+	// 	// if its not a HEAD request, append the body do i need to add a Content-Length header?
+	// 	if (!hasHeader("Content-Length")) {
+	// 		_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
+	// 	}
+	// 	response << std::string(_body.begin(), _body.end());
+	// }
+	
+	// std::cout << "\n\nDebug Response:\n" << response.str() << "\nsize: " << response.str().size() << "\n\nEnd Debug.\n" << std::endl;
+	// std::cout << "\n\nDebug Response2:\n" << std::string(_socket.write_buffer.begin(), _socket.write_buffer.end()) << "\nsize: " << _socket.write_buffer.size() << "\n\nEnd Debug.\n" << std::endl;
+	std::string retStr(response.str());
+	return std::vector<char>(retStr.begin(), retStr.end());
 }

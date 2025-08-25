@@ -17,12 +17,14 @@ private:
 
 	int _statusCode;
 	std::string _statusMessage;
-	std::string _body;
+	std::vector<char> _body;
 	std::vector<std::pair<std::string, std::string> > _headers;
 
 	// === Core Configuration & Validation ===
 	ServerKey& createServerKey();
 	bool validateServerConf();
+	bool validateClientMaxBodySize();
+	bool validateHeaderSize();
 
 	// === Error Handling ===
 	void setErrorStatus();
@@ -45,7 +47,7 @@ private:
 	// === File & Directory Operations ===
 	void loadBody(const std::string& path);
 	void handleFileRequest(const std::string& fsPath);
-	std::string buildAutoIndexBody(const std::string& fsPath) const;
+	std::vector<char> buildAutoIndexBody(const std::string& fsPath) const;
 	std::string genfsPath(const Location* locationBlock, const std::string& path);
 	bool handleSlashRedirect();
 	std::vector<std::string> createCgiEnv();
@@ -59,7 +61,7 @@ public:
 	~MiniHttpResponse();
 
 	void parseResponse();
-	std::string buildResponse();
+	std::vector<char> buildResponse();
 };
 
 #endif

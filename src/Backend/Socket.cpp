@@ -10,14 +10,14 @@
 #include "CGI.hpp"
 
 Socket::Socket(int fd, std::string port, WebServer& server): \
-	fd(fd), clientFd(-1), is_alive(true), port(port), read_buffer(), write_buffer(), isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(""), keepAlive(true), _serverKey("", port, ""), _ProphetHttp(*this, server) {
+	fd(fd), clientFd(-1), is_alive(true), port(port), read_buffer(), write_buffer(), isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", port, ""), _ProphetHttp(*this, server) {
 	this->read_buffer.reserve(READ_BUFFER_SIZE);
 	this->write_buffer.reserve(WRITE_BUFFER_SIZE);
 	this->last_active = time(NULL);
 }
 
 Socket::Socket(int fd, int clientFd, WebServer& server): \
-	fd(fd), clientFd(clientFd), is_alive(true), port(""), read_buffer(), write_buffer(), isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(""), keepAlive(true), _serverKey("", "", ""), _ProphetHttp(*this, server) {
+	fd(fd), clientFd(clientFd), is_alive(true), port(""), read_buffer(), write_buffer(), isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", "", ""), _ProphetHttp(*this, server) {
 	this->read_buffer.reserve(READ_BUFFER_SIZE);
 	this->write_buffer.reserve(WRITE_BUFFER_SIZE);
 	this->last_active = time(NULL);
@@ -112,8 +112,8 @@ bool Socket::executeCGI(Epoll& epoll) {
 		// Send the cgibody to CGI process (for POST requests)
 		std::cout << "CGI BODY" << std::endl;
 		if (!cgiBody.empty()) {
-			std::cout << cgiBody << std::endl;
-			ssize_t written = write(cgiFd, cgiBody.c_str(), cgiBody.size());
+			std::cout << std::string(cgiBody.begin(), cgiBody.end()) << std::endl;
+			ssize_t written = write(cgiFd, cgiBody.data(), cgiBody.size());
 			if (written == -1) {
 				std::cerr << "Failed to write request body to CGI process" << std::endl;
 			} else if (written < static_cast<ssize_t>(cgiBody.size())) {
@@ -130,13 +130,14 @@ bool Socket::executeCGI(Epoll& epoll) {
 	} catch (const std::exception& e) {
 		std::cerr << "CGI execution failed: " << e.what() << std::endl;
 		// reason for try catch is only for when throw from CGI::exec
-		write_buffer = "HTTP/1.1 500 Internal Server Error\r\n"
+		std::string errStr = "HTTP/1.1 500 Internal Server Error\r\n"
 					   "Content-Type: text/html\r\n"
 					   "Content-Length: 50\r\n"
 					   "Connection: close\r\n"
 					   "\r\n"
 					   "<html><body><h1>500 Internal Server Error</h1></body></html>";
-		
+		write_buffer.assign(errStr.begin(), errStr.end());
+
 		isCgi = false;
 		cgiBody.clear();
 		return false;

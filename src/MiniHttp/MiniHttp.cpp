@@ -4,6 +4,8 @@
 #include "Socket.hpp"
 #include <unistd.h>
 #include <sys/socket.h>
+#include <vector>
+#include "MiniHttpUtils.hpp"
 
 MiniHttp::MiniHttp(Socket& socket, WebServer& server) : _socket(socket), _server(server) {}
 
@@ -56,24 +58,26 @@ bool MiniHttp::run() {
 
 	// refactor into the write buffer of the socket
 	// sendResponse(response);
+	// _socket.write_buffer.clear();
 	_socket.write_buffer = response.buildResponse();
 
 	return true;
 }
 
-std::string MiniHttp::getCgiHeader(std::string& cgiBuffer) {
+std::string MiniHttp::getCgiHeader(std::vector<char>& cgiBuffer) {
 	std::string header;
-	std::string::size_type s = cgiBuffer.find("\r\n\r\n");
+	// std::string::size_type s = cgiBuffer.find("\r\n\r\n");
+	std::string::size_type s = ft_vectorFind(cgiBuffer, M_CRLF2);
 	if (s == std::string::npos) {
 		// Try with just \n\n for Unix-style line endings
-		s = cgiBuffer.find("\n\n");
+		s = ft_vectorFind(cgiBuffer, "\n\n");
 		if (s == std::string::npos)
 			return header;
-		header = cgiBuffer.substr(0, s + 2);
-		cgiBuffer.erase(0, s + 2);
+		header = std::string(cgiBuffer.begin(), cgiBuffer.begin() + s + 2);
+		cgiBuffer.erase(cgiBuffer.begin(), cgiBuffer.begin() + s + 2);
 	} else {
-		header = cgiBuffer.substr(0, s + 4);
-		cgiBuffer.erase(0, s + 4);
+		header = std::string(cgiBuffer.begin(), cgiBuffer.begin() + s + 4);
+		cgiBuffer.erase(cgiBuffer.begin(), cgiBuffer.begin() + s + 4);
 	}
 	return header;
 }
@@ -85,7 +89,7 @@ bool MiniHttp::validateCGI() {
 	
 	try {
 		// std::cout << "Validating CGI output..." << std::endl;
-		std::string cgiBuffer = _socket.read_buffer;
+		std::vector<char> cgiBuffer = _socket.read_buffer;
 		std::string cgiHeaders = getCgiHeader(cgiBuffer);
 
 		if (cgiHeaders.empty()) {
@@ -115,9 +119,10 @@ bool MiniHttp::validateCGI() {
 
 		// shouldnt close connection here?
 		// response << "Connection: close\r\n" << "\r\n" << cgiBuffer;
-		response << "\r\n" << cgiBuffer;
+		response << "\r\n" << std::string(cgiBuffer.begin(), cgiBuffer.end());
 		
-		_socket.write_buffer = response.str();
+		std::string retStr(response.str());
+		_socket.write_buffer.assign(retStr.begin(), retStr.end());
 		_socket.read_buffer.clear();
 
 		// std::cout << "CGI response: " << _socket.write_buffer << std::endl;
@@ -128,12 +133,13 @@ bool MiniHttp::validateCGI() {
 	} catch (const std::exception& e) {
 		std::cerr << "Error processing CGI output: " << e.what() << std::endl;
 		// dont exit just return eerror code	
-		_socket.write_buffer = "HTTP/1.1 500 Internal Server Error\r\n"
-							   "Content-Type: text/html\r\n"
-							   "Content-Length: 50\r\n"
-							   "Connection: close\r\n"
-							   "\r\n"
-							   "<html><body><h1>500 Internal Server Error</h1></body></html>";
+		std::string errStr = "HTTP/1.1 500 Internal Server Error\r\n"
+					   "Content-Type: text/html\r\n"
+					   "Content-Length: 50\r\n"
+					   "Connection: close\r\n"
+					   "\r\n"
+					   "<html><body><h1>500 Internal Server Error</h1></body></html>";
+		_socket.write_buffer.assign(errStr.begin(), errStr.end());
 		_socket.read_buffer.clear();
 		return true;
 	}

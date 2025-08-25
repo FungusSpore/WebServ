@@ -5,6 +5,7 @@
 #include "Location.hpp"
 
 #define DEFAULT_CLIENT_MAX_BODY_SIZE 1024000 // in bytes
+#define DEFAULT_MAX_HEADER_SIZE 8192 // in bytes
 #define DEFAULT_CLIENT_TIMEOUT 20 // in seconds
 
 struct ServerKey {

@@ -6,6 +6,7 @@
 #include "MiniHttp.hpp"
 #include "WebServer.hpp"
 #include <ctime>
+#include <vector>
 
 // class MiniHttp;
 // class Webserver;
@@ -23,13 +24,13 @@ public:
 	bool				is_alive;
 	time_t			last_active;
 	std::string port;
-	std::string read_buffer;
-	std::string write_buffer;
+	std::vector<char> read_buffer;
+	std::vector<char> write_buffer;
 
 	bool isCgi;
 	std::string cgiPath;
 	std::vector<std::string> cgiEnvs;
-	std::string cgiBody;
+	std::vector<char> cgiBody;
 
 	bool keepAlive;
 
