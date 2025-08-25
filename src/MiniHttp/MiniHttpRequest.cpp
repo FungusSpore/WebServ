@@ -246,9 +246,10 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 				_buffer.erase(0, contentLength - _body.size());
 			}
 		}
-		if (_body.size() != static_cast<std::size_t>(contentLength)) {
-			_isErrorCode = 400;
-			throw std::runtime_error("Incomplete body received: expected " + ft_toString(contentLength) + " bytes, got " + ft_toString(_body.size()) + " bytes");
+		if (_body.size() < static_cast<std::size_t>(contentLength)) {
+			// _isErrorCode = 400;
+			// throw std::runtime_error("Incomplete body received: expected " + ft_toString(contentLength) + " bytes, got " + ft_toString(_body.size()) + " bytes");
+			return false;
 		}
 		if (!_socket.keepAlive && !_buffer.empty()) {
 			_isErrorCode = 400;

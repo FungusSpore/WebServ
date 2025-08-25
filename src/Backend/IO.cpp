@@ -26,14 +26,14 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 		}
 		
 		// Handle keep-alive
-		if (!sock.keepAlive) {
+		if (!sock.keepAlive)
 			epoll.closeSocket(sock);
-		} else {
-			if (!sock.read_buffer.empty()) {
-				std::cerr << "Warning: Read buffer is not empty after response sent." << "\nread_buffer: " << sock.read_buffer << std::endl;
-			} // should throw an error or handle it differently?
-			sock.read_buffer.clear();
-		}
+		// } else {
+		// 	if (!sock.read_buffer.empty()) {
+		// 		std::cerr << "Warning: Read buffer is not empty after response sent." << "\nread_buffer: " << sock.read_buffer << std::endl;
+		// 	} // should throw an error or handle it differently?
+		// 	sock.read_buffer.clear();
+		// }
 	}
 
 	if (size == -1 && !(events & EPOLLOUT)){
