@@ -11,6 +11,7 @@
 class WebServer {
 private:
 	std::vector<std::string> _ports;
+	std::vector<ServerKey> _serverKeys;
 	std::map<ServerKey, Server> _serverMap;
 
 	static void checkTopLevelBlock(const Node& topLevelNode);
