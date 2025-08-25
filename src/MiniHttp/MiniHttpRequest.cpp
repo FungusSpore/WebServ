@@ -11,7 +11,7 @@
 #include "Socket.hpp"
 
 MiniHttpRequest::MiniHttpRequest(Socket& socket) 
-	: _socket(socket), _buffer(""), _method(""), _path(""), _version(""), _body(""), _trailer(""), _headers(), _isHeaderLoaded(false), _isErrorCode(-1) {}
+	: _socket(socket), _method(""), _path(""), _version(""), _trailer(""), _buffer(), _body(), _headers(), _isHeaderLoaded(false), _isErrorCode(-1) {}
 
 // Copy constructor and assignment operator are intentionally not implemented
 // because this class contains references that cannot be safely copied
@@ -38,7 +38,7 @@ const std::string& MiniHttpRequest::getVersion() const {
 	return _version;
 }
 
-const std::string& MiniHttpRequest::getBody() const {
+const std::vector<char>& MiniHttpRequest::getBody() const {
 	return _body;
 }
 
@@ -60,21 +60,37 @@ void MiniHttpRequest::addHeader(const std::string& key, const std::string& value
 }
 
 bool MiniHttpRequest::loadHeader() {
-	if (_buffer.find("\r\n\r\n") != std::string::npos) {
+	if (ft_vectorFind(_buffer, "\r\n\r\n") != std::string::npos) {
 		return true;
 	}
-	if (_socket.read_buffer.find("\r\n\r\n") == std::string::npos) {
-		_buffer += _socket.read_buffer;
-		_socket.read_buffer.erase();
+
+	if (ft_vectorFind(_socket.read_buffer, M_CRLF2) == std::string::npos) {
+		_buffer.insert(_buffer.end(), _socket.read_buffer.begin(), _socket.read_buffer.end());
+		_socket.read_buffer.clear();
 		return false;
 	}
-	_buffer += _socket.read_buffer;
-	_socket.read_buffer.erase();
+
+	_buffer.insert(_buffer.end(), _socket.read_buffer.begin(), _socket.read_buffer.end());
+	_socket.read_buffer.clear();
 	return true;
+
+
+
+	// if (_buffer.find("\r\n\r\n") != std::string::npos) {
+	// 	return true;
+	// }
+	// if (_socket.read_buffer.find("\r\n\r\n") == std::string::npos) {
+	// 	_buffer += _socket.read_buffer;
+	// 	_socket.read_buffer.erase();
+	// 	return false;
+	// }
+	// _buffer += _socket.read_buffer;
+	// _socket.read_buffer.erase();
+	// return true;
 }
 
 void MiniHttpRequest::parseHeader() {
-	std::istringstream iss(_buffer);
+	std::istringstream iss(std::string(_buffer.begin(), _buffer.end()));
 	std::string line;
 
 	if (std::getline(iss, line)) {
@@ -123,10 +139,17 @@ void MiniHttpRequest::parseHeader() {
 	}
 	// std::cout << "Parsed HTTP header." << std::endl;
 	
-	size_t pos = _buffer.find("\r\n\r\n");
-	if (pos != std::string::npos) {
-		_buffer.erase(0, pos + 4); // remove header part from buffer
+	size_t pos = ft_vectorFind(_buffer, M_CRLF2);
+	if (pos != std::string::npos && _buffer.size() >= pos + 4) {
+		_buffer.erase(_buffer.begin(), _buffer.begin() + pos + 4);
 	}
+	// std::cout << "\n_buffer after header parse: " << std::string(_
+
+
+	// size_t pos = _buffer.find("\r\n\r\n");
+	// if (pos != std::string::npos) {
+	// 	_buffer.erase(0, pos + 4); // remove header part from buffer
+	// }
 }
 
 std::string MiniHttpRequest::getHeaderValue(const std::string& key) const {
@@ -159,7 +182,7 @@ void MiniHttpRequest::getBodyType(bool& isChunked, long long& contentLength) {
 	}
 }
 
-void MiniHttpRequest::parseTrailer(std::string& chunk) {
+void MiniHttpRequest::parseTrailer() {
 	// char buffer[1024] = {0};
 	// int bytes_read;
 	//
@@ -172,13 +195,13 @@ void MiniHttpRequest::parseTrailer(std::string& chunk) {
 	// 	chunk.append(buffer);
 	// }
 
-	if (_buffer.empty() || _buffer.find("\r\n\r\n") == std::string::npos) {
+	if (_buffer.empty() || ft_vectorFind(_buffer, M_CRLF2) == std::string::npos) {
 		// no trailer found
 		return;
 	}
 
 	// std::string trailer = chunk.substr(0, chunk.find("\r\n\r\n"));
-	std::istringstream iss(chunk);
+	std::istringstream iss(std::string(_buffer.begin(), _buffer.end()));
 	std::string line;
 
 	while (std::getline(iss, line)) {
@@ -212,10 +235,11 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 
 	if (isChunked) {
 		while (true) {
-			size_t pos = _buffer.find("\r\n");
+			size_t pos = ft_vectorFind(_buffer, M_CRLF);
 			if (pos == std::string::npos)
 				return false;
-			std::string chunkSizeStr = _buffer.substr(0, pos);
+			// std::string chunkSizeStr = _buffer.substr(0, pos);
+			std::string chunkSizeStr(_buffer.begin(), _buffer.begin() + pos);
 			char* endPtr = NULL;
 			long long chunkSize = std::strtoll(chunkSizeStr.c_str(), &endPtr, 16);
 			if (endPtr == chunkSizeStr.c_str() || *endPtr != '\0') {
@@ -223,8 +247,9 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 				throw std::runtime_error("Invalid chunk size: " + chunkSizeStr);
 			}
 			if (chunkSize == 0) {
-				_buffer.erase(0, pos + 2);
-				parseTrailer(_buffer);
+				// _buffer.erase(0, pos + 2);
+				_buffer.erase(_buffer.begin(), _buffer.begin() + pos + 2);
+				parseTrailer();
 				return true;
 			}
 			if (_buffer.size() < pos + 2 + chunkSize + 2) {
@@ -232,18 +257,24 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 				return false;
 			}
 
-			_body.append(_buffer.substr(pos + 2, chunkSize));
-			_buffer.erase(0, pos + 2 + chunkSize + 2);
+			// _body.append(_buffer.substr(pos + 2, chunkSize));
+			// _buffer.erase(0, pos + 2 + chunkSize + 2);
+			_body.insert(_body.end(), _buffer.begin() + pos + 2, _buffer.begin() + pos + 2 + chunkSize);
+			_buffer.erase(_buffer.begin(), _buffer.begin() + pos + 2 + chunkSize + 2);
 		}
 	} else if (contentLength > 0) {
 		if (_body.size() < static_cast<std::size_t>(contentLength)) {
 			long long curSize = _body.size() + _buffer.size();
 			if (curSize < contentLength) {
-				_body.append(_buffer);
-				_buffer.erase();
+				// _body.append(_buffer);
+				// _buffer.erase();
+				_body.insert(_body.end(), _buffer.begin(), _buffer.end());
+				_buffer.clear();
 			} else {
-				_body.append(_buffer.substr(0, contentLength - _body.size()));
-				_buffer.erase(0, contentLength - _body.size());
+				// _body.append(_buffer.substr(0, contentLength - _body.size()));
+				// _buffer.erase(0, contentLength - _body.size());
+				_body.insert(_body.end(), _buffer.begin(), _buffer.begin() + (contentLength - _body.size()));
+				_buffer.erase(_buffer.begin(), _buffer.begin() + (contentLength - _body.size()));
 			}
 		}
 		if (_body.size() < static_cast<std::size_t>(contentLength)) {
@@ -253,7 +284,7 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 		}
 		if (!_socket.keepAlive && !_buffer.empty()) {
 			_isErrorCode = 400;
-			throw std::runtime_error("Unexpected data after body: " + _buffer);
+			throw std::runtime_error("Unexpected data after body: " + std::string(_buffer.begin(), _buffer.end()));
 		}
 	}
 	else {
@@ -302,7 +333,7 @@ bool MiniHttpRequest::parseRequest() {
 	std::cout << "Method: " << _method << std::endl;
 	std::cout << "Path: " << _path << std::endl;
 	std::cout << "Version: " << _version << std::endl;
-	std::cout << "Body: " << _body << std::endl;
+	std::cout << "Body: " << std::string(_body.begin(), _body.end()) << std::endl;
 	std::cout << "===End===\n" << std::endl;
 
 	return true;

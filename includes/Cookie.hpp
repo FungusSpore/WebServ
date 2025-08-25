@@ -29,4 +29,6 @@ public:
 	void setContent(const std::string& content);
 };
 
+bool operator<(const Cookie& lhs, const Cookie& rhs);
+
 #endif // !COOKIE_HPP

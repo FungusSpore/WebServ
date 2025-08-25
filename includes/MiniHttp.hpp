@@ -25,7 +25,7 @@ private:
 	MiniHttp& operator=(const MiniHttp& other);
 
 	// void sendResponse(MiniHttpResponse& response);
-	std::string getCgiHeader(std::string& cgiBuffer);
+	std::string getCgiHeader(std::vector<char>& cgiBuffer);
 
 public:
 	MiniHttp(Socket& socket, WebServer& server);

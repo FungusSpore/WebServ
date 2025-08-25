@@ -6,10 +6,13 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 	Socket&		sock = *static_cast<Socket *>(event.data.ptr);
 	uint32_t	events = event.events;
 
+	// std::cout << "Attempting to write " << sock.write_buffer.size() << " bytes to socket fd " << sock.fd << std::endl;
+	// std::cout << "buffer content: " << std::string(sock.write_buffer.begin(), sock.write_buffer.end()) << std::endl;
+
 	if (sock.clientFd == -1)
-		size = send(sock.fd, sock.write_buffer.c_str(), sock.write_buffer.size(), MSG_NOSIGNAL);
+		size = send(sock.fd, &sock.write_buffer[0], sock.write_buffer.size(), MSG_NOSIGNAL);
 	else
-		size = send(sock.clientFd, sock.write_buffer.c_str(), sock.write_buffer.size(), MSG_NOSIGNAL);
+		size = send(sock.clientFd, &sock.write_buffer[0], sock.write_buffer.size(), MSG_NOSIGNAL);
 	epoll.resetSocketTimer(sock);
 	if (size > 0)
 		sock.write_buffer.erase(sock.write_buffer.begin(), sock.write_buffer.begin() + size);

@@ -4,6 +4,7 @@
 #include <map>
 #include <sys/stat.h>
 #include "MiniHttpUtils.hpp"
+#include <vector>
 // #include <typeinfo>
 
 
@@ -82,20 +83,21 @@ bool isMimeTypeText(const std::string& mimeType) {
 	return mimeType.find("text/") == 0 || mimeType == "application/json" || mimeType == "application/javascript";
 }
 
-std::string getFileContent(const std::string& path) {
+std::vector<char> getFileContent(const std::string& path) {
 	std::ifstream inFile(path.c_str(), std::ios::binary);
 	if (!inFile) {
 		std::cerr << "Error opening file: " << path << std::endl;
-		return "";
+		return std::vector<char>();
 	}
 
 	if (isMimeTypeText(getMimeType(getFileExtension(path)))) {
 		std::ostringstream oss;
 		oss << inFile.rdbuf();
-		return oss.str();
+		std::string retStr(oss.str());
+		return std::vector<char>(retStr.begin(), retStr.end());
 	} else {
-		std::string content((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
-		return content;
+		// becarefull of this conversion if there are excess bytus this might be it
+        return std::vector<char>((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
 	}
 }
 
@@ -269,4 +271,31 @@ std::string getDefaultIndexFile(const std::string& path) {
 bool isSlashRedirect(const std::string& path) {
 	// Check if the path ends with a slash and is not just a single slash
 	return !path.empty() && path[path.size() - 1] != '/';
+}
+
+std::size_t ft_vectorFind(const std::vector<char>& vec, const std::string& find) {
+	if (find.empty() || vec.size() < find.size()) {
+		return std::string::npos;
+	}
+
+	for (std::size_t i = 0; i <= vec.size() - find.size(); ++i) {
+		if (std::equal(find.begin(), find.end(), vec.begin() + i)) {
+			return i;
+		}
+	}
+
+	std::vector<char>::const_iterator it = std::search(vec.begin(), vec.end(), find.begin(), find.end());
+	if (it != vec.end()) {
+		return std::distance(vec.begin(), it);
+	}
+	return std::string::npos;
+}
+
+std::vector<char> ft_vectorSubstr(const std::vector<char>& vec, std::size_t pos, std::size_t len) {
+	if (pos >= vec.size()) {
+		return std::vector<char>();
+	}
+
+	std::size_t end = std::min(pos + len, vec.size());
+	return std::vector<char>(vec.begin() + pos, vec.begin() + end);
 }

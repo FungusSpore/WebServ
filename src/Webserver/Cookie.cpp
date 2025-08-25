@@ -48,3 +48,9 @@ void Cookie::setValue(const std::string& value) {
 void Cookie::setContent(const std::string& content) {
 	_content = content;
 }
+
+bool operator<(const Cookie& lhs, const Cookie& rhs) {
+	if (lhs.getKey() != rhs.getKey())
+		return (lhs.getKey() < rhs.getKey());
+	return (lhs.getValue() < rhs.getValue());
+}
