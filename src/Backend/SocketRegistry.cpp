@@ -54,8 +54,11 @@ void		SocketRegistry::timeoutSocket(Socket& other){
 }
 
 void		SocketRegistry::resetSocketTimer(Socket& other){
+	_registryIterator it = std::find(_registry.begin(), _registry.end(), &other);
+	if (it == _registry.end())
+		return ;
 	other.last_active = time(NULL);
-	_registry.erase(&other);
+	_registry.erase(it);
 	_registry.insert(&other);
 }
 
@@ -66,8 +69,7 @@ void		SocketRegistry::cleanRegistry(){
 		if ((*it)->is_alive)
 			return ;
 		Socket* toBeRemoved = *it;
-		it++;
-		_registry.erase(toBeRemoved);
+		_registry.erase(it++);
 		delete(toBeRemoved);
 	}
 }
