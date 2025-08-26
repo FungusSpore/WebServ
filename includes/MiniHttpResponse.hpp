@@ -19,6 +19,7 @@ private:
 	std::string _statusMessage;
 	std::vector<char> _body;
 	std::vector<std::pair<std::string, std::string> > _headers;
+	Cookie* _cookie;
 
 	// === Core Configuration & Validation ===
 	ServerKey& createServerKey();
@@ -62,6 +63,9 @@ public:
 
 	void parseResponse();
 	std::vector<char> buildResponse();
+
+	// === Cookie ===
+	void parseCookie();
 };
 
 #endif
