@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include "WebServer.hpp"
 
+#define CGI_TIMEOUT 60
+
 struct SocketPtrComparator {
 	bool operator()(const Socket* lhs, const Socket* rhs){
 		return (*lhs < *rhs);
@@ -30,7 +32,7 @@ public:
 
 	Socket*	makeSocket(int fd, std::string port, WebServer& server);
 	// Socket*	makeSocket(int fd, int forward_fd);
-	Socket*	makeSocket(int fd, int clientFd, WebServer& server);
+	Socket*	makeSocket(int fd, Socket* toSend, WebServer& server);
 	void		removeSocket(Socket& toBeRemoved);
 	bool		searchSocket(const Socket* other);
 	void		timeoutSocket(Socket& other);

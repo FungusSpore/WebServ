@@ -1,53 +1,68 @@
 #include "../../includes/IO.hpp"
+#include <cstring>
+#include <sys/epoll.h>
+#include <sys/types.h>
 
 void	IO::try_write(Epoll& epoll, struct epoll_event& event){
-	ssize_t		size;
 	struct epoll_event ev;
 	Socket&		sock = *static_cast<Socket *>(event.data.ptr);
 	uint32_t	events = event.events;
 
-	// std::cout << "Attempting to write " << sock.write_buffer.size() << " bytes to socket fd " << sock.fd << std::endl;
-	// std::cout << "buffer content: " << std::string(sock.write_buffer.begin(), sock.write_buffer.end()) << std::endl;
-
-	if (sock.clientFd == -1)
-		size = send(sock.fd, &sock.write_buffer[0], sock.write_buffer.size(), MSG_NOSIGNAL);
-	else
-		size = send(sock.clientFd, &sock.write_buffer[0], sock.write_buffer.size(), MSG_NOSIGNAL);
-	epoll.resetSocketTimer(sock);
-	if (size > 0)
-		sock.write_buffer.erase(sock.write_buffer.begin(), sock.write_buffer.begin() + size);
-
-	if (sock.write_buffer.empty()) {
-		if (events & EPOLLOUT) {
-			events &= ~EPOLLOUT;
-			ev.events = events;
-			ev.data.ptr = &sock;
-			if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.fd, &ev) == -1){
-				epoll.closeSocket(sock);
+	if (sock.toSend != NULL){
+		sock.toSend->write_buffer = sock.write_buffer;
+		ev.events = EPOLLIN | EPOLLOUT | EPOLLHUP | EPOLLERR | EPOLLET;
+		ev.data.ptr = sock.toSend;
+		if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.toSend->fd, &ev) == -1)
 				throw SystemFailure("Epoll CTL failed to mod socket");
-			}
-		}
-		
-		// Handle keep-alive
-		if (!sock.keepAlive)
-			epoll.closeSocket(sock);
-		// } else {
-		// 	if (!sock.read_buffer.empty()) {
-		// 		std::cerr << "Warning: Read buffer is not empty after response sent." << "\nread_buffer: " << sock.read_buffer << std::endl;
-		// 	} // should throw an error or handle it differently?
-		// 	sock.read_buffer.clear();
-		// }
+		sock.write_buffer.clear();
+		epoll.resetSocketTimer(*sock.toSend);
+		epoll.closeSocket(sock);
+		return ;
 	}
 
-	if (size == -1 && !(events & EPOLLOUT)){
-		events |= EPOLLOUT;
+	while (!sock.write_buffer.empty()){
+		ssize_t size = send(sock.fd, &sock.write_buffer[0], sock.write_buffer.size(), MSG_NOSIGNAL);
+		if (size == -1){
+			if (!(events & EPOLLOUT)){
+				events |= EPOLLOUT;
+				ev.events = events;
+				ev.data.ptr = &sock;
+				if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.fd, &ev) == -1){
+					epoll.closeSocket(sock);
+					throw SystemFailure("Epoll CTL failed to mod socket");
+				}
+			}
+			break ;
+		}
+		if (size == 0){
+			epoll.closeSocket(sock);
+			return ;
+		}
+		if (static_cast<size_t>(size) < sock.write_buffer.size()) {
+				std::memmove(sock.write_buffer.data(), \
+								 sock.write_buffer.data() + size, sock.write_buffer.size() - size);
+				sock.write_buffer.resize(sock.write_buffer.size() - size);
+		}
+		else {
+			sock.write_buffer.clear();
+			break ;
+		}
+	}
+
+	if (sock.write_buffer.empty() && (events & EPOLLOUT)) {
+		events &= ~EPOLLOUT;
 		ev.events = events;
 		ev.data.ptr = &sock;
 		if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.fd, &ev) == -1){
 			epoll.closeSocket(sock);
 			throw SystemFailure("Epoll CTL failed to mod socket");
 		}
+		if (!sock.keepAlive){
+			epoll.closeSocket(sock);
+			return ;
+		}
 	}
+	epoll.resetSocketTimer(sock);
 }
 
 int	IO::try_read(Epoll& epoll, struct epoll_event& event){

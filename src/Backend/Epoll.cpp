@@ -117,8 +117,12 @@ int Epoll::get_epollfd() const{
 	return (_epollfd);
 }
 
-Socket* Epoll::makeClientSocket(int fd, int clientFd){
-	return _clientRegistry.makeSocket(fd, clientFd, _server);
+Socket* Epoll::makeClientSocket(int fd, Socket* toSend){
+	return _clientRegistry.makeSocket(fd, toSend, _server);
+}
+
+Socket* Epoll::makeClientSocket(int fd, std::string port){
+	return _clientRegistry.makeSocket(fd, port, _server);
 }
 
 void Epoll::closeSocket(Socket& other){

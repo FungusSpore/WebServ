@@ -43,7 +43,8 @@ public:
 	std::vector<struct epoll_event> get_conn_sock();
 	int get_epollfd() const;
 	void closeSocket(Socket& other);
-	Socket* makeClientSocket(int fd, int clientFd);
+	Socket* makeClientSocket(int fd, Socket* toSend);
+	Socket* makeClientSocket(int fd, std::string port);
 	void	resetSocketTimer(Socket& other);
 };
 

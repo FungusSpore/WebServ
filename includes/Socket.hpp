@@ -20,7 +20,7 @@ class Epoll;
 struct Socket{
 public:
 	int					fd;
-	int					clientFd;
+	Socket*			toSend;
 	bool				is_alive;
 	time_t			last_active;
 	std::string port;
@@ -32,11 +32,12 @@ public:
 	std::vector<std::string> cgiEnvs;
 	std::vector<char> cgiBody;
 
+
 	bool keepAlive;
 
 	Socket(int fd, std::string port, WebServer& server);
 	// Socket(int fd, int forward_fd);
-	Socket(int fd, int clientFd, WebServer& server);
+	Socket(int fd, Socket* toSend, WebServer& server);
 	Socket(const Socket& other);
 	~Socket();
 	Socket& operator=(const Socket& other);

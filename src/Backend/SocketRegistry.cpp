@@ -10,6 +10,7 @@ SocketRegistry::SocketRegistry(WebServer& prophetServer){
 		std::string port = port_list.at(i);
 		_clientTimeoutMap[port] = prophetServer.getClientTimeout(port);
 	}
+	_clientTimeoutMap["CGI"] = CGI_TIMEOUT;
 }
 
 SocketRegistry::~SocketRegistry(){
@@ -27,8 +28,8 @@ Socket*	SocketRegistry::makeSocket(int fd, std::string port, WebServer& server) 
 	return (temp);
 }
 
-Socket*	SocketRegistry::makeSocket(int fd,  int clientFd, WebServer& server) {
-	Socket* temp = new Socket( fd, clientFd, server );
+Socket*	SocketRegistry::makeSocket(int fd,  Socket* toSend, WebServer& server) {
+	Socket* temp = new Socket( fd, toSend, server );
 	_registry.insert( temp );
 	return (temp);
 }
@@ -55,8 +56,10 @@ void		SocketRegistry::timeoutSocket(Socket& other){
 
 void		SocketRegistry::resetSocketTimer(Socket& other){
 	_registryIterator it = std::find(_registry.begin(), _registry.end(), &other);
-	if (it == _registry.end())
+	if (it == _registry.end()){
+		std::cout << "didn't find socket to reset" << std::endl;
 		return ;
+	}
 	other.last_active = time(NULL);
 	_registry.erase(it);
 	_registry.insert(&other);
