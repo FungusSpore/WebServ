@@ -37,7 +37,6 @@ re: fclean all
 
 debug: CFLAGS += -g3 -fpic
 debug: clean all
-	@make -C $(LIBFT_DIR) debug
 	@echo "Enable debug mode"
 
 jwtest:

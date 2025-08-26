@@ -81,12 +81,18 @@ WebServer::WebServer(const char* filename) {
 	}
 }
 
-WebServer::WebServer(const WebServer& other) : _ports(other._ports), _serverMap(other._serverMap) {}
+WebServer::WebServer(const WebServer& other) :
+	_ports(other._ports),
+	_serverKeys(other._serverKeys),
+	_serverMap(other._serverMap),
+	_cookieVector(other._cookieVector) {}
 
 WebServer& WebServer::operator=(const WebServer& other) {
 	if (this != &other) {
 		this->_ports = other._ports;
+		this->_serverKeys = other._serverKeys;
 		this->_serverMap = other._serverMap;
+		this->_cookieVector = other._cookieVector;
 	}
 	return (*this);
 }

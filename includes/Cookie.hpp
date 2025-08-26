@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <sys/time.h>
 
 #define VALUE_LEN 16
 // key = session_id

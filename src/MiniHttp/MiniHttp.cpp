@@ -1,11 +1,13 @@
 #include <iostream>
 #include "MiniHttp.hpp"
 #include "CGI.hpp"
+#include "Cookie.hpp"
 #include "Socket.hpp"
 #include <unistd.h>
 #include <sys/socket.h>
 #include <vector>
 #include "MiniHttpUtils.hpp"
+#include "WebServer.hpp"
 
 MiniHttp::MiniHttp(Socket& socket, WebServer& server) : _socket(socket), _server(server) {}
 
@@ -82,6 +84,76 @@ std::string MiniHttp::getCgiHeader(std::vector<char>& cgiBuffer) {
 	return header;
 }
 
+void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
+	Cookie* cookie = NULL;
+
+	// find cgi_cookie header if exists
+	size_t cookiePos = cgiHeaders.find("cgi_cookie:");
+	if (cookiePos != std::string::npos) {
+		size_t lineEnd = cgiHeaders.find("\r\n", cookiePos);
+		if (lineEnd == std::string::npos) {
+			lineEnd = cgiHeaders.find("\n", cookiePos);
+		}
+		if (lineEnd != std::string::npos) {
+			std::string cookieLine = cgiHeaders.substr(cookiePos + 11, lineEnd - (cookiePos + 11));
+			ft_strtrim(cookieLine);
+
+			if (cookieLine.empty()) {
+				cgiHeaders.erase(cookiePos, lineEnd - cookiePos + 2);
+				return;
+			}
+
+
+			std::istringstream iss(cookieLine);
+			std::string token;
+			std::vector<std::string> cookies;
+			while (std::getline(iss, token, ';')) {
+				cookies.push_back(token);
+			}
+
+			std::vector<std::pair<std::string, std::string> > cookieMap;
+
+			for (std::vector<std::string>::iterator it = cookies.begin(); it != cookies.end(); ++it) {
+				ft_strtrim(*it);
+				size_t pos = (*it).find('=');
+				if (pos != std::string::npos) {
+					std::string key = (*it).substr(0, pos);
+					std::string value = (*it).substr(pos + 1);
+					ft_strtrim(key);
+					ft_strtrim(value);
+
+					cookieMap.push_back(std::make_pair(key, value));
+				}
+			}
+
+			// it might have multiple session_id cookies, take the first valid one
+			for (std::vector<std::pair<std::string, std::string> >::iterator it = cookieMap.begin(); it != cookieMap.end(); ++it) {
+				if (it->first == "session_id") {
+					cookie = _server.matchCookieValue(it->second);
+					if (cookie) {
+						break;
+					}
+				}
+			}
+
+			if (cookie) {
+				for (std::vector<std::pair<std::string, std::string> >::iterator it = cookieMap.begin(); it != cookieMap.end(); ++it) {
+					if (it->first == "user_id") {
+						if (!it->second.empty() && it->second != "Guest") {
+							cookie->setContent(it->second);
+							break;
+						}
+					}
+				}
+			}
+
+
+		}
+		// remove cgi_cookie header from cgiHeaders
+		cgiHeaders.erase(cookiePos, lineEnd - cookiePos + 2);
+	}
+}
+
 bool MiniHttp::validateCGI() {
 	if (_socket.read_buffer.empty()) {
 		return false;
@@ -96,6 +168,11 @@ bool MiniHttp::validateCGI() {
 			return false;
 		}
 		
+		parseCgiCookie(cgiHeaders);
+
+
+
+
 		std::ostringstream response;
 		response << "HTTP/1.1 200 OK\r\n";
 		

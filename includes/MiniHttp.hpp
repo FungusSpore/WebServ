@@ -26,6 +26,7 @@ private:
 
 	// void sendResponse(MiniHttpResponse& response);
 	std::string getCgiHeader(std::vector<char>& cgiBuffer);
+	void parseCgiCookie(std::string& cgiHeaders);
 
 public:
 	MiniHttp(Socket& socket, WebServer& server);
