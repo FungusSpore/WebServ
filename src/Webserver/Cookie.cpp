@@ -4,23 +4,22 @@
 std::string getCookieValue() {
 	const static std::string valChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	std::string value;
-	srand(time(NULL));
+
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	srand(tv.tv_usec);
 
 	for (int i = 0; i < VALUE_LEN; i++) {
 		value.push_back(valChars[rand() % (sizeof(valChars) - 1)]);
 	}
-	std::cout << "Generated cookie value: " << value << std::endl;
 	return (value);
 }
 
-Cookie::Cookie(std::vector<Cookie>& cookieVector, const std::string& content) : _key("session_id"), _content(content) {
-	_value = getCookieValue();
-
+Cookie::Cookie(std::vector<Cookie>& cookieVector, const std::string& content) : _key("session_id"), _value(getCookieValue()), _content(content) {
 	if (!cookieVector.empty()) {
 		std::vector<Cookie>::iterator it = cookieVector.begin();
 		for ( ; it != cookieVector.end(); ++it) {
 			if (_value == it->getValue()) {
-				std::cout << "Collision detected for cookie value: " << _value << ". Generating a new value." << std::endl;
 				_value = getCookieValue();
 				it = cookieVector.begin();
 			}

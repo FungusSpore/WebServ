@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <vector>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -377,7 +378,8 @@ std::vector<std::string> MiniHttpResponse::createCgiEnv()
 	envVars.push_back("REMOTE_ADDR=" + _socket.getServerKey()._ip);
 	envVars.push_back("REMOTE_PORT=" + _socket.getServerKey()._port);
 	envVars.push_back("REMOTE_HOST=" + _socket.getServerKey()._serverName);
-	envVars.push_back("USER_ID=" + (_cookie ? _cookie->getContent() : ""));
+	envVars.push_back("CGI_COOKIE=" + (_cookie ? "session_id=" + _cookie->getValue() + "; user_id=" + _cookie->getContent() : "session_id= ; user_id=GUEST"));
+	// std::cout << "User ID for CGI: " << (_cookie ? _cookie->getContent() : "GUEST") << std::endl;
 
 	if (_request.getMethod() == "POST") {
 		std::multimap<std::string, std::string>::const_iterator contentTypeIt = headers.find("Content-Type");
@@ -595,7 +597,6 @@ void MiniHttpResponse::parseCookie() {
 	std::multimap<std::string, std::string>::const_iterator cookieIt = headers.find("Cookie");
 	
 	if (cookieIt != headers.end()) {
-		// std::cout << "Cookie header found: " << cookieIt->second << std::endl;
 		std::istringstream iss(cookieIt->second);
 		std::string token;
 		std::vector<std::string> cookies;
@@ -603,6 +604,8 @@ void MiniHttpResponse::parseCookie() {
 			cookies.push_back(token);
 		}
 		
+		std::vector<std::pair<std::string, std::string> > cookieMap;
+
 		for (std::vector<std::string>::iterator it = cookies.begin(); it != cookies.end(); ++it) {
 			ft_strtrim(*it);
 			size_t pos = (*it).find('=');
@@ -612,32 +615,43 @@ void MiniHttpResponse::parseCookie() {
 				ft_strtrim(key);
 				ft_strtrim(value);
 
-				if (key == "session_id") {
-					_cookie = _server.matchCookieValue(value);
-					if (!_cookie) {
-						_server.addCookie("Guest");
-					}
-				}
+				cookieMap.push_back(std::make_pair(key, value));
+			}
+		}
 
-				if (key == "user_id") {
-					if (!value.empty() && value != "Guest" && _cookie) {
-						_cookie->setContent(value);
-					}
-				}
-
-				if (!_cookie) {
-					_cookie = _server.addCookie("Guest");
+		// it might have multiple session_id cookies, take the first valid one
+		for (std::vector<std::pair<std::string, std::string> >::iterator it = cookieMap.begin(); it != cookieMap.end(); ++it) {
+			if (it->first == "session_id") {
+				_cookie = _server.matchCookieValue(it->second);
+				if (_cookie) {
+					break;
 				}
 			}
 		}
-	}
-	else {
-		// std::cout << "No Cookie header found in the request." << std::endl;
-		_cookie = _server.addCookie("Guest");
+
+		if (!_cookie) {
+			_cookie = _server.addCookie("Guest");
+		} else {
+			for (std::vector<std::pair<std::string, std::string> >::iterator it = cookieMap.begin(); it != cookieMap.end(); ++it) {
+				if (it->first == "user_id") {
+					if (!it->second.empty() && it->second != "Guest") {
+						_cookie->setContent(it->second);
+						break;
+					}
+				}
+			}
+		}
+		// build Set-Cookie header
+		std::string cookieHeader = "session_id=" + _cookie->getValue() + "; Path=/; HttpOnly";
+		// std::cout << "Set-Cookie header to be set: " << cookieHeader << std::endl;
+		_headers.push_back(std::make_pair("Set-Cookie", cookieHeader));
+		return;
 	}
 
+	_cookie = _server.addCookie("Guest");
+
 	// build Set-Cookie header
-	std::string cookieHeader = "session_id=" + _cookie->getValue();
+	std::string cookieHeader = "session_id=" + _cookie->getValue() + "; Path=/; HttpOnly";
 	// std::cout << "Set-Cookie header to be set: " << cookieHeader << std::endl;
 	_headers.push_back(std::make_pair("Set-Cookie", cookieHeader));
 }
@@ -670,9 +684,9 @@ void MiniHttpResponse::parseResponse()
 		return setParseErrorResponse(413);
 	}
 
-	std::cout << "parsing cookies..." << std::endl;
+	// std::cout << "parsing cookies..." << std::endl;
 	parseCookie();
-	std::cout << "Cookie parsed: " << (_cookie ? _cookie->getValue() : "None") << std::endl;
+	// std::cout << "Cookie parsed: " << (_cookie ? _cookie->getValue() : "None") << std::endl;
 	
 	// Route to appropriate handler based on location mode
 	switch (_locationBlock->getLocationMode()) {
@@ -742,6 +756,8 @@ std::vector<char> MiniHttpResponse::buildResponse()
 	} else {
 		response << "\r\n";
 	}
+
+	// std::cout << "response : " << response.str() << std::endl;
 	
 	// maybe can remove HEAD and just check if body not empty add Content-Length
 	// if (_request.getMethod() != "HEAD" && !_body.empty()) {
