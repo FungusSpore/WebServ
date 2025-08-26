@@ -11,7 +11,7 @@
 #include <strings.h>
 
 MiniHttpResponse::MiniHttpResponse(WebServer& server, MiniHttpRequest& request, Socket& socket)
-	: _server(server), _serverBlock(0), _locationBlock(0), _request(request), _socket(socket), _statusCode(-1), _statusMessage(""), _body(), _headers() {}
+	: _server(server), _serverBlock(0), _locationBlock(0), _request(request), _socket(socket), _statusCode(-1), _statusMessage(""), _body(), _headers(), _cookie(0) {}
 
 MiniHttpResponse::~MiniHttpResponse() {}
 
@@ -377,6 +377,7 @@ std::vector<std::string> MiniHttpResponse::createCgiEnv()
 	envVars.push_back("REMOTE_ADDR=" + _socket.getServerKey()._ip);
 	envVars.push_back("REMOTE_PORT=" + _socket.getServerKey()._port);
 	envVars.push_back("REMOTE_HOST=" + _socket.getServerKey()._serverName);
+	envVars.push_back("USER_ID=" + (_cookie ? _cookie->getContent() : ""));
 
 	if (_request.getMethod() == "POST") {
 		std::multimap<std::string, std::string>::const_iterator contentTypeIt = headers.find("Content-Type");
@@ -586,6 +587,63 @@ void MiniHttpResponse::handleProxyPass()
 }
 
 // ===================================================================
+// Cookie
+// ===================================================================
+
+void MiniHttpResponse::parseCookie() {
+	const std::multimap<std::string, std::string>& headers = _request.getHeaders();
+	std::multimap<std::string, std::string>::const_iterator cookieIt = headers.find("Cookie");
+	
+	if (cookieIt != headers.end()) {
+		// std::cout << "Cookie header found: " << cookieIt->second << std::endl;
+		std::istringstream iss(cookieIt->second);
+		std::string token;
+		std::vector<std::string> cookies;
+		while (std::getline(iss, token, ';')) {
+			cookies.push_back(token);
+		}
+		
+		for (std::vector<std::string>::iterator it = cookies.begin(); it != cookies.end(); ++it) {
+			ft_strtrim(*it);
+			size_t pos = (*it).find('=');
+			if (pos != std::string::npos) {
+				std::string key = (*it).substr(0, pos);
+				std::string value = (*it).substr(pos + 1);
+				ft_strtrim(key);
+				ft_strtrim(value);
+
+				if (key == "session_id") {
+					_cookie = _server.matchCookieValue(value);
+					if (!_cookie) {
+						_server.addCookie("Guest");
+					}
+				}
+
+				if (key == "user_id") {
+					if (!value.empty() && value != "Guest" && _cookie) {
+						_cookie->setContent(value);
+					}
+				}
+
+				if (!_cookie) {
+					_cookie = _server.addCookie("Guest");
+				}
+			}
+		}
+	}
+	else {
+		// std::cout << "No Cookie header found in the request." << std::endl;
+		_cookie = _server.addCookie("Guest");
+	}
+
+	// build Set-Cookie header
+	std::string cookieHeader = "session_id=" + _cookie->getValue();
+	// std::cout << "Set-Cookie header to be set: " << cookieHeader << std::endl;
+	_headers.push_back(std::make_pair("Set-Cookie", cookieHeader));
+}
+
+
+// ===================================================================
 // MAIN PROCESSING METHODS
 // ===================================================================
 
@@ -593,16 +651,16 @@ void MiniHttpResponse::parseResponse()
 {
 	_statusCode = _request.getErrorCode();
 	if (_statusCode > 0 && _statusCode != 200) {
-		std::cout << "Request error detected with status code: " << _statusCode << std::endl;
+		// std::cout << "Request error detected with status code: " << _statusCode << std::endl;
 		return parseErrorResponse();
 	}
 
-	std::cout << "validating server configuration..." << std::endl;
+	// std::cout << "validating server configuration..." << std::endl;
 	if (!validateServerConf()) {
 		return parseErrorResponse();
 	}
 
-	std::cout << "validating header size..." << std::endl;
+	// std::cout << "validating header size..." << std::endl;
 
 	if (!validateHeaderSize()) {
 		return setParseErrorResponse(431);
@@ -612,6 +670,9 @@ void MiniHttpResponse::parseResponse()
 		return setParseErrorResponse(413);
 	}
 
+	std::cout << "parsing cookies..." << std::endl;
+	parseCookie();
+	std::cout << "Cookie parsed: " << (_cookie ? _cookie->getValue() : "None") << std::endl;
 	
 	// Route to appropriate handler based on location mode
 	switch (_locationBlock->getLocationMode()) {

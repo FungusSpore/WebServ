@@ -15,7 +15,7 @@ private:
 	std::vector<std::string> _ports;
 	std::vector<ServerKey> _serverKeys;
 	std::map<ServerKey, Server> _serverMap;
-	std::set<Cookie> _cookieSet;
+	std::vector<Cookie> _cookieVector;
 
 	static void checkTopLevelBlock(const Node& topLevelNode);
 	static void checkHttpBlock(const Node& httpNode);
@@ -30,8 +30,8 @@ public:
 	const std::vector<std::string>& getPorts() const;
 	long getClientTimeout(const std::string& port) const;
 
-	const Cookie* matchCookieValue(const std::string& value);
-	void addCookie(const std::string& content);
+	Cookie* matchCookieValue(const std::string& value);
+	Cookie* addCookie(const std::string& content);
 };
 
 #endif // !WEBSERVER_HPP

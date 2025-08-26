@@ -138,17 +138,21 @@ long WebServer::getClientTimeout(const std::string& port) const {
 	return (-1);
 }
 
-const Cookie* WebServer::matchCookieValue(const std::string& value) {
-	std::set<Cookie>::iterator it = _cookieSet.begin();
+Cookie* WebServer::matchCookieValue(const std::string& value) {
+	std::vector<Cookie>::iterator it = _cookieVector.begin();
 
-	for ( ; it != _cookieSet.end(); ++it) {
+	for ( ; it != _cookieVector.end(); ++it) {
 		if (value == it->getValue())
 			return (&(*it));
 	}
 	return (NULL);
 }
 
-void WebServer::addCookie(const std::string& content) {
-	Cookie newCookie(_cookieSet, content);
-	_cookieSet.insert(newCookie);
+Cookie* WebServer::addCookie(const std::string& content) {
+	Cookie newCookie(_cookieVector, content);
+	_cookieVector.push_back(newCookie);
+	std::string value = newCookie.getValue();
+
+	std::cout << "Value: " << value << std::endl;
+	return (this->matchCookieValue(value));
 }

@@ -2,7 +2,7 @@
 #define COOKIE_HPP
 
 #include <string>
-#include <set>
+#include <vector>
 #include <cstdlib>
 #include <ctime>
 
@@ -12,12 +12,12 @@
 // content = std::content string
 class Cookie {
 private:
-	std::string _key;
-	std::string _value;
-	std::string _content;
+	std::string _key; // session_id
+	std::string _value; // unique token
+	std::string _content; // userName
 
 public:
-	Cookie(const std::set<Cookie>& cookieSet, const std::string& content);
+	Cookie(std::vector<Cookie>& cookieSet, const std::string& content);
 	~Cookie();
 
 	const std::string& getKey() const;
