@@ -9,7 +9,7 @@
 #include "MiniHttpUtils.hpp"
 #include "WebServer.hpp"
 
-MiniHttp::MiniHttp(Socket& socket, WebServer& server) : _socket(socket), _server(server) {}
+MiniHttp::MiniHttp(Socket& socket, WebServer& server) : _socket(socket), _server(server), _request(socket) {}
 
 // MiniHttp::MiniHttp(int socket_fd, WebServer& server)
 // 	: _socket_fd(socket_fd), _server(server) {
@@ -46,15 +46,15 @@ MiniHttp::~MiniHttp() {
 
 
 bool MiniHttp::run() {
-	MiniHttpRequest request(_socket);
-	if (!request.parseRequest()) {
+	// MiniHttpRequest request(_socket);
+	if (!_request.parseRequest()) {
 		// maybe socket also need to edge cases where socket reading failed.
 		// Since this just going to return back to main loop if it doesnt have enough request data
 		return false;
 	}
 	// std::cout << "Parsed HTTP request successfully." << std::endl;
 
-	MiniHttpResponse response(_server, request, _socket);
+	MiniHttpResponse response(_server, _request, _socket);
 	response.parseResponse();
 	// std::cout << "Parsed HTTP response successfully." << std::endl;
 
