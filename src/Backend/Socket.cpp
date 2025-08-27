@@ -120,6 +120,7 @@ bool Socket::executeCGI(Epoll& epoll) {
 		}
 		else{
 			// std::cout << std::string(cgiBody.begin(), cgiBody.end()) << std::endl;
+			std::cout << cgiBody.size() << std::endl;
 			static_cast<Socket*>(inputSocket.data.ptr)->write_buffer = cgiBody;
 			IO::try_write(epoll, inputSocket);
 		}

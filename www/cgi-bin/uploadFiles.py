@@ -3,8 +3,28 @@ import cgi
 import os
 import sys
 import time
+import signal
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "upload")
+CHUNK_SIZE = 8192  # 8KB chunks
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
+TIMEOUT = 300  # 5 minutes timeout
+
+# Timeout handler
+def timeout_handler(signum, frame):
+    print("""
+        <div class="upload-error">
+            <h3>⏰ Upload Timeout</h3>
+            <p>The upload took too long and was cancelled.</p>
+        </div>
+    </div>
+</body>
+</html>""")
+    sys.exit(1)
+
+# Set timeout
+signal.signal(signal.SIGALRM, timeout_handler)
+signal.alarm(TIMEOUT)
 
 # Send proper headers
 print("Content-Type: text/html")
@@ -156,14 +176,27 @@ if fileitem.filename:
     filename = os.path.basename(fileitem.filename)
     filepath = os.path.join(UPLOAD_DIR, filename)
     
-    # Get file info
-    file_data = fileitem.file.read()
-    file_size = len(file_data)
     upload_time = time.strftime("%Y-%m-%d %H:%M:%S")
+    file_size = 0
 
     try:
+        # Stream the file data in chunks instead of reading all at once
         with open(filepath, "wb") as f:
-            f.write(file_data)
+            while True:
+                chunk = fileitem.file.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                f.write(chunk)
+                file_size += len(chunk)
+                
+                # Check file size limit
+                if file_size > MAX_FILE_SIZE:
+                    f.close()
+                    os.remove(filepath)  # Clean up partial file
+                    raise Exception(f"File too large. Maximum size is {format_file_size(MAX_FILE_SIZE)}")
+        
+        # Disable timeout after successful upload
+        signal.alarm(0)
 
         print(f"""
         <div class="upload-success">
@@ -222,6 +255,7 @@ if fileitem.filename:
                 <p><strong>Error Message:</strong> {e}</p>
                 <p><strong>Attempted Filename:</strong> {filename}</p>
                 <p><strong>Attempted Path:</strong> {filepath}</p>
+                <p><strong>Bytes Written:</strong> {file_size}</p>
             </div>
             
             <h3>💡 Troubleshooting</h3>

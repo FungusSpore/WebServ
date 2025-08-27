@@ -23,6 +23,7 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 
 	while (!sock.write_buffer.empty()){
 		ssize_t size = send(sock.fd, &sock.write_buffer[0], sock.write_buffer.size(), MSG_NOSIGNAL);
+		std::cout << "WROTE :" << size << std::endl;
 		if (size == -1){
 			if (!(events & EPOLLOUT)){
 				events |= EPOLLOUT;
