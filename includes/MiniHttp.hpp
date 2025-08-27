@@ -18,6 +18,7 @@ private:
 	Socket& _socket;
 	// int _socket_fd;
 	WebServer& _server;
+	MiniHttpRequest _request;
 
 	// Copy constructor and assignment operator are declared private and not implemented
 	// to prevent copying objects with reference members (C++98 idiom)

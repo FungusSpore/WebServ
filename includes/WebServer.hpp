@@ -32,6 +32,7 @@ public:
 
 	Cookie* matchCookieValue(const std::string& value);
 	Cookie* addCookie(const std::string& content);
+	bool deleteCookie(const std::string& value);
 };
 
 #endif // !WEBSERVER_HPP

@@ -9,7 +9,7 @@
 #include "MiniHttpUtils.hpp"
 #include "WebServer.hpp"
 
-MiniHttp::MiniHttp(Socket& socket, WebServer& server) : _socket(socket), _server(server) {}
+MiniHttp::MiniHttp(Socket& socket, WebServer& server) : _socket(socket), _server(server), _request(socket) {}
 
 // MiniHttp::MiniHttp(int socket_fd, WebServer& server)
 // 	: _socket_fd(socket_fd), _server(server) {
@@ -44,17 +44,16 @@ MiniHttp::~MiniHttp() {
 // 	}
 // }
 
-
 bool MiniHttp::run() {
-	MiniHttpRequest request(_socket);
-	if (!request.parseRequest()) {
+	// MiniHttpRequest request(_socket);
+	if (!_request.parseRequest()) {
 		// maybe socket also need to edge cases where socket reading failed.
 		// Since this just going to return back to main loop if it doesnt have enough request data
 		return false;
 	}
 	// std::cout << "Parsed HTTP request successfully." << std::endl;
 
-	MiniHttpResponse response(_server, request, _socket);
+	MiniHttpResponse response(_server, _request, _socket);
 	response.parseResponse();
 	// std::cout << "Parsed HTTP response successfully." << std::endl;
 
@@ -62,6 +61,8 @@ bool MiniHttp::run() {
 	// sendResponse(response);
 	// _socket.write_buffer.clear();
 	_socket.write_buffer = response.buildResponse();
+
+	_request.clearRequest();
 
 	return true;
 }
@@ -91,15 +92,17 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 	size_t cookiePos = cgiHeaders.find("cgi_cookie:");
 	if (cookiePos != std::string::npos) {
 		size_t lineEnd = cgiHeaders.find("\r\n", cookiePos);
+		size_t lineEndLength = 2; // for \r\n
 		if (lineEnd == std::string::npos) {
 			lineEnd = cgiHeaders.find("\n", cookiePos);
+			lineEndLength = 1; // for \n only
 		}
 		if (lineEnd != std::string::npos) {
 			std::string cookieLine = cgiHeaders.substr(cookiePos + 11, lineEnd - (cookiePos + 11));
 			ft_strtrim(cookieLine);
 
 			if (cookieLine.empty()) {
-				cgiHeaders.erase(cookiePos, lineEnd - cookiePos + 2);
+				cgiHeaders.erase(cookiePos, lineEnd - cookiePos + lineEndLength);
 				return;
 			}
 
@@ -129,9 +132,26 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 			// it might have multiple session_id cookies, take the first valid one
 			for (std::vector<std::pair<std::string, std::string> >::iterator it = cookieMap.begin(); it != cookieMap.end(); ++it) {
 				if (it->first == "session_id") {
-					cookie = _server.matchCookieValue(it->second);
-					if (cookie) {
+					if (it->second.find("DESTROY:") == 0) {
+						// remove DESTROY: prefix
+						std::string oldSessionId = it->second.substr(8);
+						std::string expireCookieHeader = "Set-Cookie: session_id=" + oldSessionId + "; Path=/; HttpOnly; Max-Age=0\r\n";
+						
+						size_t insertPos = (lineEnd != std::string::npos) ? lineEnd + 2 : cgiHeaders.length();
+						cgiHeaders.insert(insertPos, expireCookieHeader);
+						
+						_server.deleteCookie(oldSessionId);
+						cookie = _server.addCookie("Guest");
+
+						std::string newCookieHeader = "Set-Cookie: session_id=" + cookie->getValue() + "; Path=/; HttpOnly\r\n";
+						cgiHeaders.insert(insertPos + expireCookieHeader.length(), newCookieHeader);
+						
 						break;
+					} else {
+						cookie = _server.matchCookieValue(it->second);
+						if (cookie) {
+							break;
+						}
 					}
 				}
 			}
@@ -149,8 +169,8 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 
 
 		}
-		// remove cgi_cookie header from cgiHeaders
-		cgiHeaders.erase(cookiePos, lineEnd - cookiePos + 2);
+		// remove cgi_cookie header from cgiHeaders (use correct line ending length)
+		cgiHeaders.erase(cookiePos, lineEnd - cookiePos + lineEndLength);
 	}
 }
 

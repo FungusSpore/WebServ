@@ -59,6 +59,18 @@ void MiniHttpRequest::addHeader(const std::string& key, const std::string& value
 	_headers.insert(std::make_pair(key, value));
 }
 
+void MiniHttpRequest::clearRequest() {
+	_method.clear();
+	_path.clear();
+	_version.clear();
+	_trailer.clear();
+	_buffer.clear();
+	_body.clear();
+	_headers.clear();
+	_isHeaderLoaded = false;
+	_isErrorCode = -1;
+}
+
 bool MiniHttpRequest::loadHeader() {
 	if (ft_vectorFind(_buffer, "\r\n\r\n") != std::string::npos) {
 		return true;
