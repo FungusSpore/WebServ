@@ -3,35 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Test Server</title>
+    <title>🚀 Prophet Web Server - Home</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 Test Web Server</h1>
-        <p>Welcome to your dummy web server! This is a static HTML file.</p>
+    <div class="container fade-in">
+        <!-- Navigation -->
+        <nav class="nav">
+            <div class="logo">🚀 Prophet Server</div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about.html">About</a></li>
+                <li><a href="/cgi-bin/login.py">Login</a></li>
+                <li><a href="/upload/uploadFile.html">Upload</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <h1>Welcome to Prophet Web Server</h1>
         
-        <h2>Test Links</h2>
-        <ul>
-            <li><a href="/">Home (this page)</a></li>
-            <li><a href="/cgi-bin/login.py">Cookie: Login</a></li>
-            <li><a href="/directory/">Directory Listing (autoindex)</a></li>
-            <li><a href="/redirect">Redirection Test</a></li>
-            <li><a href="/redirect404">Redirection with code 404</a></li>
-            <li><a href="/images/">Images Directory</a></li>
-            <li><a href="/css/style.css">CSS File</a></li>
-            <li><a href="/upload/uploadFile.html">Upload File</a></li>
-            <li><a href="/cgi-bin/hello_process.py">CGI: Hello!</a></li>
-            <li><a href="/cgi-bin/tic-tac-toe.py">CGI: Tic-Tac-Toe!</a></li>
-            <li><a href="/cgi-bin/tic-tac-toe-noX.py">CGI: Tic-Tac-Toe! no X!</a></li>
-            <li><a href="/404">404 Test</a></li>
-            <li><a href="/nonExistence">Invalid Location</a></li>
+        <div class="text-center mb-3">
+            <span class="status running">🟢 Server Running</span>
+            <span class="highlight">v1.0 - Core Module 5</span>
+        </div>
+        
+        <p class="text-center">
+            A high-performance HTTP/1.1 web server built in C++. 
+            Test all the features and functionalities below!
+        </p>
+
+        <!-- Feature Cards -->
+        <div class="card-grid">
+            <div class="card">
+                <h3>🔐 Authentication</h3>
+                <p>Test session management and cookie-based authentication.</p>
+                <a href="/cgi-bin/login.py" class="button">Login System</a>
+            </div>
+            
+            <div class="card">
+                <h3>🎮 Interactive CGI</h3>
+                <p>Play games and interact with dynamic CGI scripts.</p>
+                <a href="/cgi-bin/tic-tac-toe.py" class="button success">Tic-Tac-Toe</a>
+            </div>
+            
+            <div class="card">
+                <h3>📁 File Management</h3>
+                <p>Upload files and browse directory listings.</p>
+                <a href="/upload/uploadFile.html" class="button secondary">Upload Files</a>
+                <a href="/directory/" class="button secondary">Browse</a>
+            </div>
+        </div>
+
+        <!-- Test Links Section -->
+        <h2>🧪 Server Tests & Features</h2>
+        <ul class="feature-list">
+            <li><a href="/">🏠 Home Page</a> - Static file serving</li>
+            <li><a href="/about.html">📄 About Page</a> - Another static page</li>
+            <li><a href="/cgi-bin/login.py">🔑 Cookie Authentication</a> - Session management</li>
+            <li><a href="/cgi-bin/hello_process.py">👋 Hello CGI</a> - Basic CGI script</li>
+            <li><a href="/cgi-bin/tic-tac-toe.py">🎯 Tic-Tac-Toe Game</a> - Interactive game</li>
+            <li><a href="/cgi-bin/tic-tac-toe-noX.py">⭕ Tic-Tac-Toe (No X)</a> - Alternative version</li>
+            <li><a href="/directory/">📂 Directory Listing</a> - Autoindex feature</li>
+            <li><a href="/images/">🖼️ Image Gallery</a> - Static images</li>
+            <li><a href="/upload/uploadFile.html">📤 File Upload</a> - Multipart form handling</li>
         </ul>
-        
-        <h2>Server Information</h2>
-        <p><strong>Server:</strong> Prophet/1.0</p>
-        <p><strong>Status:</strong> Running</p>
-        <p><strong>Location Mode:</strong> Static File Serving</p>
+
+        <!-- Redirect & Error Tests -->
+        <h2>🔄 Redirects & Error Handling</h2>
+        <ul class="feature-list">
+            <li><a href="/redirect">↗️ Redirection Test</a> - Standard redirect</li>
+            <li><a href="/redirect404">❌ Redirect with 404</a> - Error redirect</li>
+            <li><a href="/404">🚫 404 Test</a> - Not found error</li>
+            <li><a href="/nonExistence">⚠️ Invalid Location</a> - Missing resource</li>
+        </ul>
+
+        <!-- Server Info -->
+        <h2>ℹ️ Server Information</h2>
+        <div class="card">
+            <p><strong>Server Name:</strong> Prophet Web Server</p>
+            <p><strong>Version:</strong> 1.0</p>
+            <p><strong>Technology:</strong> C++ HTTP/1.1 Implementation</p>
+            <p><strong>Features:</strong> CGI, Sessions, File Upload, Autoindex, Redirects</p>
+            <p><strong>Location Mode:</strong> <span class="status running">Static File Serving</span></p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Built with ❤️ for 42KL Core Module 5 | <a href="/css/style.css">View CSS</a></p>
+        </div>
     </div>
 </body>
 </html>

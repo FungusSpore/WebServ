@@ -427,12 +427,20 @@ const Location* Server::matchLocation(const std::string& target) const {
 	for (size_t i = 0; i < _locations.size(); i++) {
 		const std::string& path = _locations[i].getUriPath();
 
-		if (target.compare(0, path.size(), path) == 0
-			&& (target.size() == path.size() || target[path.size()] == '/')) {
-			// && (target.size() == path.size() || (target.size() > path.size() && target[path.size()] == '/'))) {
-			if (path.size() > matchLength) {
-				matchLength = path.size();
-				match = &_locations[i];
+		if (target.compare(0, path.size(), path) == 0) {
+			// Special case for root location "/"
+			if (path == "/") {
+				if (path.size() > matchLength) {
+					matchLength = path.size();
+					match = &_locations[i];
+				}
+			}
+			// For other locations, ensure proper path separation
+			else if (target.size() == path.size() || target[path.size()] == '/') {
+				if (path.size() > matchLength) {
+					matchLength = path.size();
+					match = &_locations[i];
+				}
 			}
 		}
 	}

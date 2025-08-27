@@ -91,15 +91,17 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 	size_t cookiePos = cgiHeaders.find("cgi_cookie:");
 	if (cookiePos != std::string::npos) {
 		size_t lineEnd = cgiHeaders.find("\r\n", cookiePos);
+		size_t lineEndLength = 2; // for \r\n
 		if (lineEnd == std::string::npos) {
 			lineEnd = cgiHeaders.find("\n", cookiePos);
+			lineEndLength = 1; // for \n only
 		}
 		if (lineEnd != std::string::npos) {
 			std::string cookieLine = cgiHeaders.substr(cookiePos + 11, lineEnd - (cookiePos + 11));
 			ft_strtrim(cookieLine);
 
 			if (cookieLine.empty()) {
-				cgiHeaders.erase(cookiePos, lineEnd - cookiePos + 2);
+				cgiHeaders.erase(cookiePos, lineEnd - cookiePos + lineEndLength);
 				return;
 			}
 
@@ -129,9 +131,26 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 			// it might have multiple session_id cookies, take the first valid one
 			for (std::vector<std::pair<std::string, std::string> >::iterator it = cookieMap.begin(); it != cookieMap.end(); ++it) {
 				if (it->first == "session_id") {
-					cookie = _server.matchCookieValue(it->second);
-					if (cookie) {
+					if (it->second.find("DESTROY:") == 0) {
+						// remove DESTROY: prefix
+						std::string oldSessionId = it->second.substr(8);
+						std::string expireCookieHeader = "Set-Cookie: session_id=" + oldSessionId + "; Path=/; HttpOnly; Max-Age=0\r\n";
+						
+						size_t insertPos = (lineEnd != std::string::npos) ? lineEnd + 2 : cgiHeaders.length();
+						cgiHeaders.insert(insertPos, expireCookieHeader);
+						
+						_server.deleteCookie(oldSessionId);
+						cookie = _server.addCookie("Guest");
+
+						std::string newCookieHeader = "Set-Cookie: session_id=" + cookie->getValue() + "; Path=/; HttpOnly\r\n";
+						cgiHeaders.insert(insertPos + expireCookieHeader.length(), newCookieHeader);
+						
 						break;
+					} else {
+						cookie = _server.matchCookieValue(it->second);
+						if (cookie) {
+							break;
+						}
 					}
 				}
 			}
@@ -149,8 +168,8 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 
 
 		}
-		// remove cgi_cookie header from cgiHeaders
-		cgiHeaders.erase(cookiePos, lineEnd - cookiePos + 2);
+		// remove cgi_cookie header from cgiHeaders (use correct line ending length)
+		cgiHeaders.erase(cookiePos, lineEnd - cookiePos + lineEndLength);
 	}
 }
 

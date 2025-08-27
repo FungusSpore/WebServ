@@ -162,3 +162,14 @@ Cookie* WebServer::addCookie(const std::string& content) {
 	std::cout << "Value: " << value << std::endl;
 	return (this->matchCookieValue(value));
 }
+
+bool WebServer::deleteCookie(const std::string& value) {
+	std::vector<Cookie>::iterator it = _cookieVector.begin();
+	for ( ; it != _cookieVector.end(); ++it) {
+		if (value == it->getValue()) {
+			_cookieVector.erase(it);
+			return true;
+		}
+	}
+	return false;
+}
