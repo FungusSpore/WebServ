@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <exception>
 #include <iostream>
+#include <iterator>
 #include <unistd.h>
 #include <cstring>
 #include <sys/socket.h>
@@ -72,16 +73,27 @@ void MiniHttpRequest::clearRequest() {
 }
 
 bool MiniHttpRequest::loadHeader() {
+	std::cout << "Finding delimeter....." << std::endl;
 	if (ft_vectorFind(_buffer, "\r\n\r\n") != std::string::npos) {
 		return true;
 	}
+	std::cout << "Buffer content :" << std::string(_buffer.begin(), _buffer.end()) << std::endl;
+	std::cout << "Socket content :" << std::string(_socket.read_buffer.begin(), _socket.read_buffer.end()) << std::endl;
 
+	if (ft_vectorFind(_socket.read_buffer, M_CRLF2) == std::string::npos)
+		std::cout << "Found M_CRLF2" << std::endl;
+	if (ft_vectorFind(_socket.read_buffer, "\n\n") == std::string::npos)
+		std::cout << "Found linux" << std::endl;
+
+	std::cout << "Finding delimeter Again....." << std::endl;
 	if (ft_vectorFind(_socket.read_buffer, M_CRLF2) == std::string::npos) {
+		std::cout << "insert rest into buffer haven't found header....." << std::endl;
 		_buffer.insert(_buffer.end(), _socket.read_buffer.begin(), _socket.read_buffer.end());
 		_socket.read_buffer.clear();
 		return false;
 	}
-
+	
+	std::cout << "Append rest of content to http buffer found header...." << std::endl;
 	_buffer.insert(_buffer.end(), _socket.read_buffer.begin(), _socket.read_buffer.end());
 	_socket.read_buffer.clear();
 	return true;
@@ -316,20 +328,22 @@ bool MiniHttpRequest::parseRequest() {
 
 	try {
 		if (!_isHeaderLoaded) {
-			// std::cout << "Loading HTTP header..." << std::endl;
+			std::cout << "Loading HTTP header..." << std::endl;
 			if (!loadHeader())
 				return false;
-			// std::cout << "HTTP header loaded." << std::endl;
+			std::cout << "HTTP header loaded." << std::endl;
 			// std::cout << "\n_buffer: " << _buffer << std::endl;
 			parseHeader();
-			// std::cout << "Parsed HTTP header." << std::endl;
+			std::cout << "Parsed HTTP header." << std::endl;
 			// shouldnt throw but should return error response
 			_isHeaderLoaded = true;
 		}
 
 		_socket.keepAlive = !(getHeaderValue("Connection") == "close");
 		
+		std::cout << "Getting Body Type..." << std::endl;
 		getBodyType(isChunked, contentLength);
+		std::cout << "Loading Body..." << std::endl;
 		if (!loadBody(isChunked, contentLength))
 			return false;
 

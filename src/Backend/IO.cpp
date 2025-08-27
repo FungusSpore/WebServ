@@ -16,6 +16,7 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 				throw SystemFailure("Epoll CTL failed to mod socket");
 		sock.write_buffer.clear();
 		epoll.resetSocketTimer(*sock.toSend);
+		std::cout << "CGI Port: [ " << sock.fd << "] forwarded to content to port [ " << sock.toSend->fd << "]" << std::endl;
 		epoll.closeSocket(sock);
 		return ;
 	}
