@@ -44,7 +44,6 @@ MiniHttp::~MiniHttp() {
 // 	}
 // }
 
-
 bool MiniHttp::run() {
 	// MiniHttpRequest request(_socket);
 	if (!_request.parseRequest()) {
@@ -62,6 +61,8 @@ bool MiniHttp::run() {
 	// sendResponse(response);
 	// _socket.write_buffer.clear();
 	_socket.write_buffer = response.buildResponse();
+
+	_request.clearRequest();
 
 	return true;
 }

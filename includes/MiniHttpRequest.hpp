@@ -36,6 +36,9 @@ public:
 	// Parses the HTTP request from the socket
 	bool parseRequest();
 
+	// clean up resources
+	void clearRequest();
+
 	// Getters
 	Socket& getSocket() const;
 	const std::string& getMethod() const;
