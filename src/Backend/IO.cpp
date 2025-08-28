@@ -1,29 +1,18 @@
 #include "../../includes/IO.hpp"
 #include <cstring>
 #include <sys/epoll.h>
+#include <sys/socket.h>
 #include <sys/types.h>
+
 
 void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 	struct epoll_event ev;
 	Socket&		sock = *static_cast<Socket *>(event.data.ptr);
 	uint32_t	events = event.events;
 
-	if (sock.toSend != NULL){
-		sock.toSend->write_buffer = sock.write_buffer;
-		ev.events = EPOLLIN | EPOLLOUT | EPOLLHUP | EPOLLERR | EPOLLET;
-		ev.data.ptr = sock.toSend;
-		if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.toSend->fd, &ev) == -1)
-				throw SystemFailure("Epoll CTL failed to mod socket");
-		sock.write_buffer.clear();
-		epoll.resetSocketTimer(*sock.toSend);
-		std::cout << "CGI Port: [ " << sock.fd << "] forwarded to content to port [ " << sock.toSend->fd << "]" << std::endl;
-		epoll.closeSocket(sock);
-		return ;
-	}
-
 	while (!sock.write_buffer.empty()){
 		ssize_t size = send(sock.fd, &sock.write_buffer[0], sock.write_buffer.size(), MSG_NOSIGNAL);
-		std::cout << "WROTE :" << size << std::endl;
+		std::cout << sock.fd << " WROTE :" << size << std::endl;
 		if (size == -1){
 			if (!(events & EPOLLOUT)){
 				events |= EPOLLOUT;
@@ -46,18 +35,28 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 				sock.write_buffer.resize(sock.write_buffer.size() - size);
 		}
 		else {
+			std::cout << "Write buffer done" << std::endl;
 			sock.write_buffer.clear();
 			break ;
 		}
 	}
 
-	if (sock.write_buffer.empty() && (events & EPOLLOUT)) {
-		events &= ~EPOLLOUT;
-		ev.events = events;
-		ev.data.ptr = &sock;
-		if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.fd, &ev) == -1){
-			epoll.closeSocket(sock);
-			throw SystemFailure("Epoll CTL failed to mod socket");
+	if (sock.write_buffer.empty()) {
+		if (events & EPOLLOUT){
+			events &= ~EPOLLOUT;
+			ev.events = events;
+			ev.data.ptr = &sock;
+			if (epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_MOD, sock.fd, &ev) == -1){
+				epoll.closeSocket(sock);
+				throw SystemFailure("Epoll CTL failed to mod socket");
+			}
+		}
+		if (sock.toSend != NULL){
+			std::cout << "closing write end" << std::endl;
+			std::cerr << "Server: shutting down CGI socket for fd=" << sock.fd << std::endl;
+			shutdown(sock.fd, SHUT_WR);
+			epoll.resetSocketTimer(sock);
+			return ;
 		}
 		if (!sock.keepAlive){
 			epoll.closeSocket(sock);
@@ -74,6 +73,7 @@ int	IO::try_read(Epoll& epoll, struct epoll_event& event){
 
 	while (true){
 		size = recv(sock.fd, buffer, READ_BUFFER, 0);
+		std::cout << sock.fd << " READ :" << size << std::endl;
 		epoll.resetSocketTimer(sock);
 		if (size > 0)
 			sock.read_buffer.insert(sock.read_buffer.end(), buffer, buffer+size);

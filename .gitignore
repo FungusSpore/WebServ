@@ -5,6 +5,8 @@ build/
 *.a
 *.so
 .cache/
+output
+Webserve
 
 # MiniSocket gitignore
 src/MiniHttpRequest/include/MiniSocket.hpp

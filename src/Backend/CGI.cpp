@@ -5,58 +5,42 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
-// bool isNonBlocking(int fd) {
-//     int flags = fcntl(fd, F_GETFL);
-//     return (flags & O_NONBLOCK) != 0;
-// }
 
 struct epoll_event CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 	int sv[2];
-	int	inputSocket;
 	std::vector<char*> argv;
 	struct epoll_event ev;
-	struct epoll_event input;
 
 	argv.push_back(const_cast<char*>(cgi_path));
 	argv.push_back(NULL);
 
-	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0, sv) == -1)
+	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sv) == -1)
 		throw SystemFailure("cgi socketpair failed");
-	inputSocket = dup(sv[0]);
-	if (inputSocket == -1)
-		throw SystemFailure("cgi dup failed");
-	Utils::setnonblocking(inputSocket);
 
 	pid_t pid = fork();
 	switch (pid) {
 	case -1:
 		close(sv[0]);
 		close(sv[1]);
-		close(inputSocket);
 		throw SystemFailure("CGI Fork failed");
 	case 0:
 		dup2(sv[1], STDOUT_FILENO);
 		dup2(sv[1], STDIN_FILENO);
 		close(sv[0]);
 		close(sv[1]);
-		close(inputSocket);
 		execve(argv[0], &argv[0], envp); // no need to check return value, it will exit if it fails - compile error 
 		exit(1);
 	default:
 		close(sv[1]);
 		ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
-		ev.data.ptr = epoll.makeClientSocket(sv[0], &client);
+		Socket* cgiSock = epoll.makeClientSocket(sv[0], &client);
+		ev.data.ptr = cgiSock;
 		epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_ADD, sv[0], &ev);
 
-		input.events = EPOLLET | EPOLLHUP | EPOLLERR;
-		input.data.ptr = epoll.makeClientSocket(inputSocket, client.port);
-		epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_ADD, inputSocket, &input);
-		std::cout << "FD for original socket " << sv[0] << "\nFD for dup " << inputSocket << std::endl;
+		std::cout << "FD for cgi socket " << sv[0] << std::endl;
+		std::cout << "FD for client socket " << client.fd << std::endl;
 	}
-	// // Usage:
-	// std::cout << "sv[0] is " << (isNonBlocking(sv[0]) ? "non-blocking" : "blocking") << std::endl;
-	// std::cout << "inputSocket is " << (isNonBlocking(inputSocket) ? "non-blocking" : "blocking") << std::endl;
-	return (input);
+	return (ev);
 }
 
 

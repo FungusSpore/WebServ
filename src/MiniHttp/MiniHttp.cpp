@@ -219,8 +219,11 @@ bool MiniHttp::validateCGI() {
 		response << "\r\n" << std::string(cgiBuffer.begin(), cgiBuffer.end());
 		
 		std::string retStr(response.str());
-		_socket.write_buffer.assign(retStr.begin(), retStr.end());
+
+		// _socket.write_buffer.assign(retStr.begin(), retStr.end());
+		_socket.toSend->write_buffer.assign(retStr.begin(), retStr.end());
 		_socket.read_buffer.clear();
+	
 
 		// std::cout << "CGI response: " << _socket.write_buffer << std::endl;
 		//

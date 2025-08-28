@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sys/epoll.h>
 #include <vector>
 #include <signal.h>
 #include "../includes/Epoll.hpp"
@@ -104,8 +105,14 @@ int main(int ac, char **av) {
 					if (IO::try_read(epoll, myevents.at(i)) != -1){
 						// need to detect if this is a cgi response to continue
 						if (mysock->toSend != NULL) {
-							if (mysock->validateCGI())
-								IO::try_write(epoll, myevents.at(i));
+							// std::cout << "Read Buffer: " << std::string(mysock->read_buffer.begin(), mysock->read_buffer.end()) << std::endl;
+							// std::cout << "Write Buffer: " << std::string(mysock->write_buffer.begin(), mysock->write_buffer.end()) << std::endl;
+							if (mysock->validateCGI()){
+								struct epoll_event ev;
+								ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
+								ev.data.ptr = mysock->toSend;
+								IO::try_write(epoll, ev);
+							}
 						}
 						else {
 							if (mysock->runHttp()) {

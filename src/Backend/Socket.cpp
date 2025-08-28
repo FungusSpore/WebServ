@@ -14,8 +14,7 @@ Socket::Socket(int fd, std::string port, WebServer& server): \
 	fd(fd), toSend(NULL), is_alive(true), port(port), read_buffer(), write_buffer(),\
 	isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", port, ""), _ProphetHttp(*this, server) {
 	this->read_buffer.reserve(READ_BUFFER_SIZE);
-	this->write_buffer.reserve(WRITE_BUFFER_SIZE);
-	this->last_active = time(NULL);
+	this->write_buffer.reserve(WRITE_BUFFER_SIZE); this->last_active = time(NULL);
 }
 
 Socket::Socket(int fd, Socket* toSend, WebServer& server): \
@@ -102,7 +101,7 @@ bool Socket::executeCGI(Epoll& epoll) {
 	try {
 		std::vector<char*> envp;
 		for (size_t i = 0; i < cgiEnvs.size(); ++i) {
-			// std::cout << cgiEnvs[i] << std::endl;
+			std::cout << cgiEnvs[i] << std::endl;
 			envp.push_back(const_cast<char*>(cgiEnvs[i].c_str()));
 		}
 		envp.push_back(NULL);
@@ -115,19 +114,29 @@ bool Socket::executeCGI(Epoll& epoll) {
 		
 		// Send the cgibody to CGI process (for POST requests)
 		std::cout << "CGI BODY" << std::endl;
-		if (cgiBody.empty()) {
-			epoll.closeSocket(*static_cast<Socket*>(inputSocket.data.ptr));
-		}
-		else{
+		// if (cgiBody.empty()) {
+		// 	epoll.closeSocket(*static_cast<Socket*>(inputSocket.data.ptr));
+		// }
+		// else{
+		// 	// std::cout << std::string(cgiBody.begin(), cgiBody.end()) << std::endl;
+		// 	static_cast<Socket*>(inputSocket.data.ptr)->write_buffer = cgiBody;
+		// 	IO::try_write(epoll, inputSocket);
+		// }
+		if (!cgiBody.empty()){
 			// std::cout << std::string(cgiBody.begin(), cgiBody.end()) << std::endl;
-			std::cout << cgiBody.size() << std::endl;
 			static_cast<Socket*>(inputSocket.data.ptr)->write_buffer = cgiBody;
+			std::cout << static_cast<Socket*>(inputSocket.data.ptr)->write_buffer.size() << std::endl;
 			IO::try_write(epoll, inputSocket);
 		}
+		else {
+			std::cerr << "Server: shutting down CGI socket for fd=" << static_cast<Socket*>(inputSocket.data.ptr)->fd << std::endl;
+			shutdown(static_cast<Socket*>(inputSocket.data.ptr)->fd, SHUT_WR);
+		}
 		
-		// isCgi = false;
+		
+		isCgi = false;
 		// read_buffer.clear();
-		// cgiBody.clear();
+		cgiBody.clear();
 		
 		return true;
 		
