@@ -1,74 +1,42 @@
 #!/usr/bin/python3
-import cgi
+import signal
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 import os
 import sys
+import tempfile
+import io
+import cgi
 import time
-sys.stdout.flush()
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "upload")
+def signal_handler(signum, frame):
+    print("CGI: Received signal, exiting", file=sys.stderr)
+    sys.stderr.flush()
+    os._exit(1)
 
-# Send proper headers
-print("Content-Type: text/html")
-print()
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
-# Ensure upload directory exists
-try:
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-except Exception as e:
-    print(f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>❌ Upload Error - Prophet Web Server</title>
-    <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-    <div class="container fade-in">
-        <nav class="nav">
-            <div class="logo">🚀 Prophet Server</div>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/about.html">About</a></li>
-                <li><a href="/cgi-bin/login.py">Login</a></li>
-                <li><a href="/upload/uploadFile.html">Upload</a></li>
-            </ul>
-        </nav>
-        
-        <h1>❌ Upload Directory Error</h1>
-        
-        <div class="card">
-            <h3>Failed to create upload directory</h3>
-            <p class="error-message">Error: {e}</p>
-            <div class="text-center">
-                <a href="/upload/uploadFile.html" class="button">🔄 Try Again</a>
-                <a href="/" class="button secondary">🏠 Home</a>
-            </div>
-        </div>
-    </div>
-</body>
-</html>""")
-    sys.exit(1)
+def log(msg):
+    print(msg, file=sys.stderr)
+    sys.stderr.flush()
 
-form = cgi.FieldStorage()
+log("CGI: Script started")
+for key in ["REQUEST_METHOD", "CONTENT_LENGTH", "CONTENT_TYPE", "QUERY_STRING", "SCRIPT_NAME"]:
+    log(f"  {key} = {os.environ.get(key, '<not set>')}")
 
-# Helper function to format file size
-def format_file_size(size_bytes):
-    if size_bytes == 0:
-        return "0 B"
-    size_names = ["B", "KB", "MB", "GB"]
-    i = 0
-    while size_bytes >= 1024 and i < len(size_names) - 1:
-        size_bytes /= 1024.0
-        i += 1
-    return f"{size_bytes:.1f} {size_names[i]}"
+# SEND HEADERS IMMEDIATELY - don't wait for data processing
+sys.stdout.write("Content-Type: text/html\r\n")
+sys.stdout.write("\r\n")  # Empty line to end headers
+sys.stdout.flush()  # Force headers to be sent immediately
 
+# Start HTML page immediately
 print("""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📁 File Upload Result - Prophet Web Server</title>
+    <title>📁 File Upload Processing - Prophet Web Server</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .upload-success {
@@ -112,7 +80,6 @@ print("""<!DOCTYPE html>
 </head>
 <body>
     <div class="container fade-in">
-        <!-- Navigation -->
         <nav class="nav">
             <div class="logo">🚀 Prophet Server</div>
             <ul class="nav-links">
@@ -122,11 +89,105 @@ print("""<!DOCTYPE html>
                 <li><a href="/upload/uploadFile.html">Upload</a></li>
             </ul>
         </nav>
+        
+        <h1>📁 File Upload Processing</h1>""")
+sys.stdout.flush()
 
-        <h1>📁 File Upload Result</h1>""")
+try:
+    content_length = int(os.environ.get('CONTENT_LENGTH', 0))
+except ValueError:
+    content_length = 0
+content_type = os.environ.get('CONTENT_TYPE', '')
 
-if "file" not in form:
-    print("""
+print("Content-Length: {}", content_length, file=sys.stderr)
+
+log(f"CGI: Content-Length: {content_length}")
+log(f"CGI: Content-Type: {content_type}")
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(SCRIPT_DIR, "storage")
+TMP_DIR = os.path.join(SCRIPT_DIR, "tmp")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(TMP_DIR, exist_ok=True)
+
+# Stream stdin directly to a temp file
+log("CGI: Streaming stdin to temp file")
+temp_path = None
+try:
+    # Use local tmp directory instead of system tmp
+    import uuid
+    temp_filename = f"upload_{uuid.uuid4().hex}.tmp"
+    temp_path = os.path.join(TMP_DIR, temp_filename)
+    
+    with open(temp_path, "wb") as temp:
+        bytes_read = 0
+        while bytes_read < content_length:
+
+            chunk_size = min(8388608, content_length - bytes_read)
+            # log(f"CGI: Attempting toread {chunk_size} bytes (read {bytes_read}/{content_length})")
+            
+            try:
+                # Check if data is available before reading
+                import select
+                ready, _, _ = select.select([sys.stdin], [], [], 1.0)  # 1 second timeout
+                if not ready:
+                    log("CGI: No data available on stdin after 1 second")
+                    break
+                    
+                chunk = sys.stdin.buffer.read(chunk_size)
+                # log(f"CGI: Actually read {len(chunk) if chunk else 0} bytes")
+            except Exception as e:
+                log(f"CGI: Error reading from stdin: {e}")
+                break
+                
+            if not chunk:
+                log(f"CGI: Unexpected EOF, read {bytes_read} of {content_length}")
+                break
+            temp.write(chunk)
+            bytes_read += len(chunk)
+            
+            # Log progress for large files
+            if bytes_read % (1024*1024) == 0:  # Every MB
+                log(f"CGI: Progress: {bytes_read}/{content_length} bytes")
+                
+    log(f"CGI: Finished reading stdin: {bytes_read} bytes to {temp_path}")
+
+    # Parse multipart from temp file
+    with open(temp_path, "rb") as f:
+        data_stream = io.BytesIO(f.read())
+
+except Exception as e:
+    log(f"CGI: Error during stdin processing: {e}")
+    if temp_path and os.path.exists(temp_path):
+        os.unlink(temp_path)
+    # Headers already sent, send error HTML
+    print(f"""
+        <div class="upload-error">
+            <h3>❌ Upload Failed</h3>
+            <p>Failed to process upload data.</p>
+        </div>
+        
+        <div class="card">
+            <h3>🔍 Error Details</h3>
+            <div class="file-info">
+                <p><strong>Error Message:</strong> {e}</p>
+            </div>
+            
+            <div class="text-center mt-3">
+                <a href="/upload/uploadFile.html" class="button">🔄 Try Again</a>
+                <a href="/" class="button secondary">🏠 Home</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>""")
+    sys.exit(1)
+
+form = cgi.FieldStorage(fp=data_stream, environ=os.environ.copy())
+if "file" not in form or not getattr(form["file"], "filename", None):
+    log("CGI: No file found")
+    # Headers already sent, send no file HTML
+    print(f"""
         <div class="upload-error">
             <h3>❌ No File Uploaded</h3>
             <p>Please select a file before submitting the form.</p>
@@ -151,26 +212,37 @@ if "file" not in form:
 </html>""")
     sys.exit(0)
 
-fileitem = form["file"]
+file_item = form["file"]
+filename = os.path.basename(file_item.filename)
+name, ext = os.path.splitext(filename)
+counter = 1
+new_filename = filename
+filepath = os.path.join(UPLOAD_DIR, new_filename)
+while os.path.exists(filepath):
+    new_filename = f"{name}({counter}){ext}"
+    filepath = os.path.join(UPLOAD_DIR, new_filename)
+    counter += 1
 
-if fileitem.filename:
-    filename = os.path.basename(fileitem.filename)
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    upload_time = time.strftime("%Y-%m-%d %H:%M:%S")
+log(f"CGI: Moving temp file to {filepath}")
+os.rename(temp_path, filepath)
+bytes_written = os.path.getsize(filepath)
+log(f"CGI: File write complete, {bytes_written} bytes total")
 
-    try:
-        # Stream the file in chunks instead of reading all at once
-        with open(filepath, "wb") as f:
-            while True:
-                chunk = fileitem.file.read(8192)  # 8KB chunks
-                if not chunk:
-                    break
-                f.write(chunk)
-        
-        # Get file size after writing
-        file_size = os.path.getsize(filepath)
+# Helper function to format file size
+def format_file_size(size_bytes):
+    if size_bytes == 0:
+        return "0 B"
+    size_names = ["B", "KB", "MB", "GB"]
+    i = 0
+    while size_bytes >= 1024 and i < len(size_names) - 1:
+        size_bytes /= 1024.0
+        i += 1
+    return f"{size_bytes:.1f} {size_names[i]}"
 
-        print(f"""
+upload_time = time.strftime("%Y-%m-%d %H:%M:%S")
+
+# Send success HTML
+print(f"""
         <div class="upload-success">
             <h3>✅ File Uploaded Successfully!</h3>
             <p>Your file has been saved to the server.</p>
@@ -179,8 +251,9 @@ if fileitem.filename:
         <div class="card">
             <h3>📋 Upload Details</h3>
             <div class="file-info">
-                <p><strong>📁 Filename:</strong> {filename}</p>
-                <p><strong>📏 File Size:</strong> {format_file_size(file_size)}</p>
+                <p><strong>📁 Original Filename:</strong> {filename}</p>
+                <p><strong>💾 Saved As:</strong> {new_filename}</p>
+                <p><strong>📏 File Size:</strong> {format_file_size(bytes_written)}</p>
                 <p><strong>⏰ Upload Time:</strong> {upload_time}</p>
                 <p><strong>💾 Saved To:</strong> {filepath}</p>
             </div>
@@ -196,76 +269,22 @@ if fileitem.filename:
                     <li>Files are accessible via direct URL</li>
                 </ul>
             </div>
-            
-            <div class="card">
-                <h3>🔧 Server Info</h3>
-                <p><strong>Upload Directory:</strong> {UPLOAD_DIR}</p>
-                <p><strong>Server Status:</strong> <span class="status running">✅ Online</span></p>
-                <p><strong>CGI Processing:</strong> <span class="highlight">Active</span></p>
-            </div>
         </div>
         
         <div class="text-center mt-3">
             <a href="/upload/uploadFile.html" class="button">📤 Upload Another</a>
             <a href="/" class="button secondary">🏠 Home</a>
-            <a href="/cgi-bin/hello_process.py" class="button secondary">👋 Hello Demo</a>
         </div>
     </div>
 </body>
 </html>""")
-        
-    except Exception as e:
-        print(f"""
-        <div class="upload-error">
-            <h3>❌ Upload Failed</h3>
-            <p>Failed to save file to server.</p>
-        </div>
-        
-        <div class="card">
-            <h3>🔍 Error Details</h3>
-            <div class="file-info">
-                <p><strong>Error Message:</strong> {e}</p>
-                <p><strong>Attempted Filename:</strong> {filename}</p>
-                <p><strong>Attempted Path:</strong> {filepath}</p>
-            </div>
-            
-            <h3>💡 Troubleshooting</h3>
-            <ul class="feature-list">
-                <li>Check if upload directory has write permissions</li>
-                <li>Verify file size is within server limits</li>
-                <li>Ensure filename contains valid characters</li>
-                <li>Try uploading a different file</li>
-            </ul>
-            
-            <div class="text-center mt-3">
-                <a href="/upload/uploadFile.html" class="button">🔄 Try Again</a>
-                <a href="/" class="button secondary">🏠 Home</a>
-            </div>
-        </div>
-    </div>
-</body>
-</html>""")
-else:
-    print("""
-        <div class="upload-error">
-            <h3>❌ No File Selected</h3>
-            <p>The form was submitted without selecting a file.</p>
-        </div>
-        
-        <div class="card">
-            <h3>📋 How to Upload Files</h3>
-            <ul class="feature-list">
-                <li><strong>Step 1:</strong> Click "Choose File" button</li>
-                <li><strong>Step 2:</strong> Select a file from your computer</li>
-                <li><strong>Step 3:</strong> Click "Upload" to submit</li>
-                <li><strong>Step 4:</strong> Wait for confirmation message</li>
-            </ul>
-            
-            <div class="text-center mt-3">
-                <a href="/upload/uploadFile.html" class="button">🔄 Try Again</a>
-                <a href="/" class="button secondary">🏠 Home</a>
-            </div>
-        </div>
-    </div>
-</body>
-</html>""")
+
+log("CGI: Script ending")
+
+# Cleanup temp file
+if temp_path and os.path.exists(temp_path):
+    try:
+        os.unlink(temp_path)
+        log("CGI: Temp file cleaned up")
+    except:
+        pass

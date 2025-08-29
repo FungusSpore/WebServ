@@ -37,8 +37,8 @@ struct epoll_event CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, So
 		ev.data.ptr = cgiSock;
 		epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_ADD, sv[0], &ev);
 
-		std::cout << "FD for cgi socket " << sv[0] << std::endl;
-		std::cout << "FD for client socket " << client.fd << std::endl;
+		// std::cout << "FD for cgi socket " << sv[0] << std::endl;
+		// std::cout << "FD for client socket " << client.fd << std::endl;
 	}
 	return (ev);
 }

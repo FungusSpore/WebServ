@@ -35,6 +35,7 @@ Socket*	SocketRegistry::makeSocket(int fd,  Socket* toSend, WebServer& server) {
 }
 
 void		SocketRegistry::removeSocket(Socket& toBeRemoved){
+	std::cout << "HARD REMOVE SOCKET: " << toBeRemoved.fd << std::endl;
 	toBeRemoved.is_alive = false;
 	close(toBeRemoved.fd);
 }

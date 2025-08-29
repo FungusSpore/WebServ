@@ -43,10 +43,11 @@ int main(int ac, char **av) {
 		while (!g_signal){
 			std::vector<struct epoll_event> myevents = epoll.get_conn_sock();
 			for (size_t i = 0; i < myevents.size(); i++){
+				std::cout << "New Event" << std::endl;
 				Socket *mysock = static_cast<Socket *>(myevents.at(i).data.ptr);
 				uint32_t events = myevents.at(i).events;
 				if (events & EPOLLERR) {
-						std::cout << "EPOLLERR on socket " << mysock->fd << ": \n";
+					std::cout << "EPOLLERR on socket " << mysock->fd << std::endl;
 						
 						// Get the specific socket error
 						int socket_error = 0;
@@ -100,13 +101,9 @@ int main(int ac, char **av) {
 				}
 
 				if (events & EPOLLIN){
-					std::cout << "EPOLLIN on socket " << mysock->fd << ": \n";
-					// act like process
+					std::cout << "EPOLLIN on socket " << mysock->fd << std::endl;;
 					if (IO::try_read(epoll, myevents.at(i)) != -1){
-						// need to detect if this is a cgi response to continue
 						if (mysock->toSend != NULL) {
-							// std::cout << "Read Buffer: " << std::string(mysock->read_buffer.begin(), mysock->read_buffer.end()) << std::endl;
-							// std::cout << "Write Buffer: " << std::string(mysock->write_buffer.begin(), mysock->write_buffer.end()) << std::endl;
 							if (mysock->validateCGI()){
 								struct epoll_event ev;
 								ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
@@ -126,11 +123,31 @@ int main(int ac, char **av) {
 				}
 
 				if (events & EPOLLOUT){
-					std::cout << "EPOLLOUT on socket " << mysock->fd << ": \n";
+					std::cout << "EPOLLOUT on socket " << mysock->fd << std::endl;
 					IO::try_write(epoll, myevents.at(i));
 				}
 				if (events & EPOLLHUP){
-					std::cout << "EPOLLHUP on socket " << mysock->fd << ": \n";
+					std::cout << "EPOLLHUP on socket " << mysock->fd << std::endl;
+					if (IO::try_read(epoll, myevents.at(i)) != -1){
+						std::cout << std::string(mysock->read_buffer.begin(), mysock->read_buffer.end()) << std::endl;
+						if (mysock->toSend != NULL) {
+							if (mysock->validateCGI()){
+								std::cout << "VALIDATE CGI" << std::endl;
+								struct epoll_event ev;
+								ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
+								ev.data.ptr = mysock->toSend;
+								IO::try_write(epoll, ev);
+							}
+						}
+						else {
+							if (mysock->runHttp()) {
+								IO::try_write(epoll, myevents.at(i));
+							}
+							else if (mysock->isCgi && !mysock->executeCGI(epoll)) {
+								IO::try_write(epoll, myevents.at(i));
+							}
+						}
+					}
 					epoll.closeSocket(*mysock);
 					continue ;
 				}

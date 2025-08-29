@@ -28,6 +28,7 @@ public:
 	std::vector<char> write_buffer;
 
 	bool isCgi;
+	bool cgiOutputCompleted;
 	std::string cgiPath;
 	std::vector<std::string> cgiEnvs;
 	std::vector<char> cgiBody;

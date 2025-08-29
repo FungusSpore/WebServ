@@ -12,14 +12,14 @@
 
 Socket::Socket(int fd, std::string port, WebServer& server): \
 	fd(fd), toSend(NULL), is_alive(true), port(port), read_buffer(), write_buffer(),\
-	isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", port, ""), _ProphetHttp(*this, server) {
+	isCgi(false), cgiOutputCompleted(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", port, ""), _ProphetHttp(*this, server) {
 	this->read_buffer.reserve(READ_BUFFER_SIZE);
 	this->write_buffer.reserve(WRITE_BUFFER_SIZE); this->last_active = time(NULL);
 }
 
 Socket::Socket(int fd, Socket* toSend, WebServer& server): \
 	fd(fd), toSend(toSend), is_alive(true), port(""), read_buffer(), write_buffer(),\
-	isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", "", ""), _ProphetHttp(*this, server) {
+	isCgi(false), cgiOutputCompleted(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", "", ""), _ProphetHttp(*this, server) {
 	this->read_buffer.reserve(READ_BUFFER_SIZE);
 	this->write_buffer.reserve(WRITE_BUFFER_SIZE);
 	this->last_active = time(NULL);
@@ -27,11 +27,12 @@ Socket::Socket(int fd, Socket* toSend, WebServer& server): \
 
 Socket::Socket(const Socket& other): \
 	fd(other.fd), toSend(other.toSend), is_alive(true), port(other.port), read_buffer(other.read_buffer), \
-	write_buffer(other.write_buffer), isCgi(other.isCgi), cgiPath(other.cgiPath), cgiEnvs(other.cgiEnvs), \
+	write_buffer(other.write_buffer), isCgi(other.isCgi), cgiOutputCompleted(other.cgiOutputCompleted), cgiPath(other.cgiPath), cgiEnvs(other.cgiEnvs), \
 	cgiBody(other.cgiBody), keepAlive(other.keepAlive), _serverKey(other._serverKey), _ProphetHttp(*this, other._ProphetHttp.getServer()) {}
 
 Socket& Socket::operator=(const Socket& other){
-	if (this != &other) { this->fd = other.fd;
+	if (this != &other) { 
+		this->fd = other.fd;
 		this->toSend = other.toSend;
 		this->is_alive = other.is_alive;
 		this->last_active = other.last_active;
@@ -39,6 +40,7 @@ Socket& Socket::operator=(const Socket& other){
 		this->read_buffer = other.read_buffer;
 		this->write_buffer = other.write_buffer;
 		this->isCgi = other.isCgi;
+		this->cgiOutputCompleted = other.cgiOutputCompleted;
 		this->cgiPath = other.cgiPath;
 		this->cgiEnvs = other.cgiEnvs;
 		this->cgiBody = other.cgiBody;
@@ -135,7 +137,7 @@ bool Socket::executeCGI(Epoll& epoll) {
 		
 		
 		isCgi = false;
-		// read_buffer.clear();
+		read_buffer.clear();
 		cgiBody.clear();
 		
 		return true;

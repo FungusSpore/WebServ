@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include "WebServer.hpp"
 
-#define CGI_TIMEOUT 60
+#define CGI_TIMEOUT 300
 
 struct SocketPtrComparator {
 	bool operator()(const Socket* lhs, const Socket* rhs){

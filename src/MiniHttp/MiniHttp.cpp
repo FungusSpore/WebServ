@@ -175,19 +175,20 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 }
 
 bool MiniHttp::validateCGI() {
+		std::cout << "Enter ..." << std::endl;
 	if (_socket.read_buffer.empty()) {
 		return false;
 	}
 	
 	try {
-		// std::cout << "Validating CGI output..." << std::endl;
+		std::cout << "Validating CGI output..." << std::endl;
 		std::vector<char> cgiBuffer = _socket.read_buffer;
 		std::string cgiHeaders = getCgiHeader(cgiBuffer);
 
 		if (cgiHeaders.empty()) {
 			return false;
 		}
-		
+		std::cout << "Cgi headers donessss" << std::endl;
 		parseCgiCookie(cgiHeaders);
 
 
@@ -220,6 +221,7 @@ bool MiniHttp::validateCGI() {
 		
 		std::string retStr(response.str());
 
+		std::cout << "CGI vALIDATE client respone: " << retStr << std::endl;
 		// _socket.write_buffer.assign(retStr.begin(), retStr.end());
 		_socket.toSend->write_buffer.assign(retStr.begin(), retStr.end());
 		_socket.read_buffer.clear();
