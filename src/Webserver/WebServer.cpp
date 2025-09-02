@@ -1,29 +1,5 @@
 #include "WebServer.hpp"
 
-// void printNode(const Node& node, int indent = 0) {
-//     std::string prefix(indent * 2, ' ');
-//
-//     // Print the node name and args
-//     std::cout << prefix << node.getName();
-//     for (const auto& arg : node.getArguments()) {
-//         std::cout << " " << arg.getName();
-//     }
-//
-//     // Print position (optional)
-//     std::cout << "    [line " << node.getLine() << ", col " << node.getColumn() << "]";
-//
-//     // If it has children, open a block
-//     if (!node.getChildren().empty()) {
-//         std::cout << " {\n";
-//         for (const auto& child : node.getChildren()) {
-//             printNode(child, indent + 1);
-//         }
-//         std::cout << prefix << "}";
-//     }
-//
-//     std::cout << "\n";
-// }
-
 // --------------- WEBSERVER ----------------
 void WebServer::checkTopLevelBlock(const Node& topLevelNode) {
 	size_t childrenSize = topLevelNode.getChildren().size();
@@ -54,7 +30,6 @@ void WebServer::checkHttpBlock(const Node& httpNode) {
 WebServer::WebServer(const char* filename) {
 	Parser parser(filename);
 	Node root = parser.parseRoot();
-	// printNode(root);
 	
 	checkTopLevelBlock(root);
 
@@ -75,7 +50,14 @@ WebServer::WebServer(const char* filename) {
 				throw (Parser::ParseErrorException(msg));
 			}
 		}
-		_ports.push_back(serv_key._port);
+		if (_ports.empty())
+			_ports.push_back(serv_key._port);
+		else {
+			std::vector<std::string>::const_iterator itPort =
+				std::find(_ports.begin(), _ports.end(), serv_key._port);
+			if (itPort == _ports.end())
+				_ports.push_back(serv_key._port);
+		}
 		_serverKeys.push_back(serv_key);
 		_serverMap.insert(std::pair<ServerKey, Server>(serv_key, serv));
 	}
@@ -99,35 +81,42 @@ WebServer& WebServer::operator=(const WebServer& other) {
 
 WebServer::~WebServer() {}
 
-// if serverName empty : match 2 ? match 3 (not implement yet)
-const Server* WebServer::matchServer(const ServerKey& key) const {
-	// std::map<ServerKey, Server>::const_iterator it = _serverMap.begin();
-	//
-	// if (key._serverName.empty()) {
-	// 	for ( ; it != _serverMap.end(); ++it) {
-	// 		if (key._ip == it->first._ip && key._port == it->first._port)
-	// 			return (&it->second);
-	// 	}
-	// }
-	// else {
-	// 	for ( ; it != _serverMap.end(); ++it) {
-	// 		if (key._ip == it->first._ip && key._port == it->first._port
-	// 			&& key._serverName == it->first._serverName)
-	// 			return (&it->second);
-	// 	}
-	// }
-	
-	// std::cout << "Available servers:\n";
-	// for (std::map<ServerKey, Server>::const_iterator pair = _serverMap.begin();
-	//      pair != _serverMap.end(); ++pair) {
-	// 	std::cout << "IP: " << pair->first._ip
-	// 	          << ", Port: " << pair->first._port
-	// 	          << ", ServerName: " << pair->first._serverName << "\n";
-	// }
-	std::map<ServerKey, Server>::const_iterator it = _serverMap.find(key);
+static bool matchLocalhost(const std::string& src, const std::string& query) {
+	if (src.substr(0, 3) == "127" && (query.substr(0, 3) == "127" || query == "localhost")) {
+		return (true);
+	}
+	return (false);
+}
 
-	if (it != _serverMap.end())
-		return (&it->second);
+static bool matchExactIp(const std::string& src, const std::string& query) {
+	if (src == query) {
+		return (true);
+	}
+	return (false);
+}
+
+const Server* WebServer::matchServer(const ServerKey& key) const {
+	std::map<ServerKey, Server>::const_iterator it = _serverMap.begin();
+	for ( ; it != _serverMap.end(); ++it) {
+		if (matchLocalhost(it->first._ip, key._ip)
+			|| matchExactIp(it->first._ip, key._ip)) {
+			// std::cout << "Matched localhost or exact IP" << std::endl;
+			if (key._port == it->first._port) {
+				// std::cout << "Matched port" << std::endl;
+				return(&it->second);
+			}
+		}
+	}
+	it = _serverMap.begin();
+	for ( ; it != _serverMap.end(); ++it) {
+		if (it->first._ip == "0.0.0.0") {
+			// std::cout << "Matched wildcard" << std::endl;
+			if (key._port == it->first._port) {
+				// std::cout << "Matched port" << std::endl;
+				return(&it->second);
+			}
+		}
+	}
 	return (NULL);
 }
 
