@@ -3,10 +3,48 @@ import os
 import sys
 import time
 import html
-from urllib.parse import quote
+from urllib.parse import parse_qs
 
 # Set the upload directory relative to this script
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "upload")
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "storage")
+
+# Handle POST requests (delete operations)
+if os.environ.get('REQUEST_METHOD') == 'POST':
+    try:
+        content_length = int(os.environ.get('CONTENT_LENGTH', 0))
+        if content_length > 0:
+            post_data = sys.stdin.read(content_length)
+            params = parse_qs(post_data)
+            
+            if 'action' in params:
+                action = params['action'][0]
+                
+                if action == 'delete' and 'filename' in params:
+                    filename = params['filename'][0]
+                    file_path = os.path.join(UPLOAD_DIR, filename)
+                    if os.path.exists(file_path) and os.path.isfile(file_path):
+                        os.remove(file_path)
+                        print("Content-Type: text/html")
+                        print()
+                        print(f"<script>alert('File {html.escape(filename)} deleted successfully!'); window.location.href='/cgi-bin/browse_uploads.py';</script>")
+                        sys.exit(0)
+                
+                elif action == 'delete_all':
+                    deleted_count = 0
+                    for filename in os.listdir(UPLOAD_DIR):
+                        file_path = os.path.join(UPLOAD_DIR, filename)
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                            deleted_count += 1
+                    print("Content-Type: text/html")
+                    print()
+                    print(f"<script>alert('{deleted_count} files deleted successfully!'); window.location.href='/cgi-bin/browse_uploads.py';</script>")
+                    sys.exit(0)
+    except Exception as e:
+        print("Content-Type: text/html")
+        print()
+        print(f"<script>alert('Error: {e}'); window.location.href='/cgi-bin/browse_uploads.py';</script>")
+        sys.exit(0)
 
 # Send proper headers
 print("Content-Type: text/html")
@@ -124,12 +162,32 @@ print(f"""<!DOCTYPE html>
             font-size: 0.875rem;
             transition: all 0.2s ease;
         }}
-        .download-link {{
-            background: var(--primary-color, #007bff);
+        .delete-btn {{
+            background-color: #dc3545;
             color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }}
-        .download-link:hover {{
-            background: var(--primary-hover, #0056b3);
+        .delete-btn:hover {{
+            background-color: #c82333;
+        }}
+        .delete-all-btn {{
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 1rem;
+        }}
+        .delete-all-btn:hover {{
+            background-color: #5a6268;
         }}
         .empty-state {{
             text-align: center;
@@ -197,12 +255,17 @@ if files:
             <span>💾 Total size: <strong>{total_size_readable}</strong></span>
         </div>
         
+        <!-- Delete All Button -->
+        <form method="post" onsubmit="return confirm('Are you sure you want to delete ALL files? This action cannot be undone!');" style="margin-bottom: 1rem;">
+            <input type="hidden" name="action" value="delete_all">
+            <button type="submit" class="delete-all-btn">🗑️ Delete All Files</button>
+        </form>
+        
         <div class="file-list">
     """)
     
     for file in files:
         file_name = html.escape(file['name'])
-        file_path_encoded = quote(f"/cgi-bin/upload/{file['name']}")
         file_ext = os.path.splitext(file['name'])[1].lower()
         
         # Choose icon based on file extension
@@ -233,7 +296,11 @@ if files:
                     </div>
                 </div>
                 <div class="file-actions">
-                    <a href="{file_path_encoded}" class="download-link" target="_blank">📥 Download</a>
+                    <form method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete {file_name}?');">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="filename" value="{file_name}">
+                        <button type="submit" class="delete-btn">🗑️ Delete</button>
+                    </form>
                 </div>
             </div>
         """)

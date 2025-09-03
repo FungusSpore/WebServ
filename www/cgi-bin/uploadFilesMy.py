@@ -25,73 +25,73 @@ log("CGI: Script started")
 for key in ["REQUEST_METHOD", "CONTENT_LENGTH", "CONTENT_TYPE", "QUERY_STRING", "SCRIPT_NAME"]:
     log(f"  {key} = {os.environ.get(key, '<not set>')}")
 
-# SEND HEADERS IMMEDIATELY - don't wait for data processing
-sys.stdout.write("Content-Type: text/html\r\n")
-sys.stdout.write("\r\n")  # Empty line to end headers
-sys.stdout.flush()  # Force headers to be sent immediately
+# # SEND HEADERS IMMEDIATELY - don't wait for data processing
+# sys.stdout.write("Content-Type: text/html\r\n")
+# sys.stdout.write("\r\n")  # Empty line to end headers
+# sys.stdout.flush()  # Force headers to be sent immediately
 
 # Start HTML page immediately
-print("""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📁 File Upload Processing - Prophet Web Server</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <style>
-        .upload-success {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            text-align: center;
-            animation: fadeInScale 0.6s ease-out;
-        }
+# print("""<!DOCTYPE html>
+# <html lang="en">
+# <head>
+#     <meta charset="UTF-8">
+#     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+#     <title>📁 File Upload Processing - Prophet Web Server</title>
+#     <link rel="stylesheet" href="/css/style.css">
+#     <style>
+#         .upload-success {
+#             background: linear-gradient(135deg, #27ae60, #2ecc71);
+#             color: white;
+#             padding: 20px;
+#             border-radius: 10px;
+#             margin: 20px 0;
+#             text-align: center;
+#             animation: fadeInScale 0.6s ease-out;
+#         }
         
-        .upload-error {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            text-align: center;
-            animation: shake 0.5s ease-in-out;
-        }
+#         .upload-error {
+#             background: linear-gradient(135deg, #e74c3c, #c0392b);
+#             color: white;
+#             padding: 20px;
+#             border-radius: 10px;
+#             margin: 20px 0;
+#             text-align: center;
+#             animation: shake 0.5s ease-in-out;
+#         }
         
-        .file-info {
-            background: #f8f9fa;
-            border-left: 4px solid #3498db;
-            padding: 15px;
-            margin: 15px 0;
-        }
+#         .file-info {
+#             background: #f8f9fa;
+#             border-left: 4px solid #3498db;
+#             padding: 15px;
+#             margin: 15px 0;
+#         }
         
-        @keyframes fadeInScale {
-            0% { opacity: 0; transform: scale(0.8); }
-            100% { opacity: 1; transform: scale(1); }
-        }
+#         @keyframes fadeInScale {
+#             0% { opacity: 0; transform: scale(0.8); }
+#             100% { opacity: 1; transform: scale(1); }
+#         }
         
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-    </style>
-</head>
-<body>
-    <div class="container fade-in">
-        <nav class="nav">
-            <div class="logo">🚀 Prophet Server</div>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/about.html">About</a></li>
-                <li><a href="/cgi-bin/login.py">Login</a></li>
-                <li><a href="/upload/uploadFile.html">Upload</a></li>
-            </ul>
-        </nav>
+#         @keyframes shake {
+#             0%, 100% { transform: translateX(0); }
+#             25% { transform: translateX(-5px); }
+#             75% { transform: translateX(5px); }
+#         }
+#     </style>
+# </head>
+# <body>
+#     <div class="container fade-in">
+#         <nav class="nav">
+#             <div class="logo">🚀 Prophet Server</div>
+#             <ul class="nav-links">
+#                 <li><a href="/">Home</a></li>
+#                 <li><a href="/about.html">About</a></li>
+#                 <li><a href="/cgi-bin/login.py">Login</a></li>
+#                 <li><a href="/upload/uploadFile.html">Upload</a></li>
+#             </ul>
+#         </nav>
         
-        <h1>📁 File Upload Processing</h1>""")
-sys.stdout.flush()
+#         <h1>📁 File Upload Processing</h1>""")
+# sys.stdout.flush()
 
 try:
     content_length = int(os.environ.get('CONTENT_LENGTH', 0))
@@ -241,8 +241,56 @@ def format_file_size(size_bytes):
 
 upload_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
-# Send success HTML
-print(f"""
+# Before sending the success HTML, send headers again
+sys.stdout.write("Content-Type: text/html\r\n")
+sys.stdout.write("\r\n")  # Empty line to end headers
+
+# Send complete HTML document with proper structure
+print(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📁 Upload Success - Prophet Web Server</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .upload-success {{
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            animation: fadeInScale 0.6s ease-out;
+        }}
+        
+        .file-info {{
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+        }}
+        
+        @keyframes fadeInScale {{
+            0% {{ opacity: 0; transform: scale(0.8); }}
+            100% {{ opacity: 1; transform: scale(1); }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container fade-in">
+        <nav class="nav">
+            <div class="logo">🚀 Prophet Server</div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about.html">About</a></li>
+                <li><a href="/cgi-bin/login.py">Login</a></li>
+                <li><a href="/upload/uploadFile.html">Upload</a></li>
+            </ul>
+        </nav>
+        
+        <h1>📁 File Upload Success</h1>
+
         <div class="upload-success">
             <h3>✅ File Uploaded Successfully!</h3>
             <p>Your file has been saved to the server.</p>
@@ -266,12 +314,12 @@ print(f"""
                     <li>Your file is now stored on the server</li>
                     <li>Upload another file if needed</li>
                     <li>Check the upload directory for your files</li>
-                    <li>Files are accessible via direct URL</li>
                 </ul>
             </div>
         </div>
         
         <div class="text-center mt-3">
+            <a href="/cgi-bin/browse_uploads.py" class="button">📂 Browse Files</a>
             <a href="/upload/uploadFile.html" class="button">📤 Upload Another</a>
             <a href="/" class="button secondary">🏠 Home</a>
         </div>

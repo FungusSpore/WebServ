@@ -291,31 +291,15 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 			_buffer.erase(_buffer.begin(), _buffer.begin() + pos + 2 + chunkSize + 2);
 		}
 	} else if (contentLength > 0) {
+		size_t toCopy = std::min(static_cast<size_t>(contentLength - _body.size()), _buffer.size());
+		_body.insert(_body.end(), _buffer.begin(), _buffer.begin() + toCopy);
+		_buffer.erase(_buffer.begin(), _buffer.begin() + toCopy);
+
 		if (_body.size() < static_cast<std::size_t>(contentLength)) {
-			long long curSize = _body.size() + _buffer.size();
-			if (curSize < contentLength) {
-				// _body.append(_buffer);
-				// _buffer.erase();
-				_body.insert(_body.end(), _buffer.begin(), _buffer.end());
-				_buffer.clear();
-			} else {
-				// _body.append(_buffer.substr(0, contentLength - _body.size()));
-				// _buffer.erase(0, contentLength - _body.size());
-				_body.insert(_body.end(), _buffer.begin(), _buffer.begin() + (contentLength - _body.size()));
-				_buffer.erase(_buffer.begin(), _buffer.begin() + (contentLength - _body.size()));
-			}
-		}
-		if (_body.size() < static_cast<std::size_t>(contentLength)) {
-			// _isErrorCode = 400;
-			// throw std::runtime_error("Incomplete body received: expected " + ft_toString(contentLength) + " bytes, got " + ft_toString(_body.size()) + " bytes");
-			std::cout << "false body size : " << _body.size() << " contentLength: " << contentLength << std::endl;
-			std::cout << "false buffer size : " << _buffer.size() << std::endl;
-			std::cout << "false socket size : " << _socket.read_buffer.size() << std::endl;
+			// std::cout << "false body size : " << _body.size() << " contentLength: " << contentLength << std::endl;
+			// std::cout << "false buffer size : " << _buffer.size() << std::endl;
+			// std::cout << "false socket size : " << _socket.read_buffer.size() << std::endl;
 			return false;
-		}
-		if (!_socket.keepAlive && !_buffer.empty()) {
-			_isErrorCode = 400;
-			throw std::runtime_error("Unexpected data after body: " + std::string(_buffer.begin(), _buffer.end()));
 		}
 	}
 	else {
@@ -367,6 +351,11 @@ bool MiniHttpRequest::parseRequest() {
 	std::cout << "Method: " << _method << std::endl;
 	std::cout << "Path: " << _path << std::endl;
 	std::cout << "Version: " << _version << std::endl;
+	std::cout << "Headers:" << std::endl;
+	for (std::multimap<std::string, std::string>::const_iterator it = _headers.begin();
+		 it != _headers.end(); ++it) {
+		std::cout << it->first << ": " << it->second << std::endl;
+	}
 	std::cout << "Body size: " << _body.size() << std::endl;
 	// std::cout << "Body: " << std::string(_body.begin(), _body.end()) << std::endl;
 	std::cout << "===End===\n" << std::endl;

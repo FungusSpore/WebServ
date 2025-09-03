@@ -217,14 +217,19 @@ bool MiniHttp::validateCGI() {
 
 		// shouldnt close connection here?
 		// response << "Connection: close\r\n" << "\r\n" << cgiBuffer;
-		response << "\r\n" << std::string(cgiBuffer.begin(), cgiBuffer.end());
+		response << "\r\n";
 		
-		std::string retStr(response.str());
-
-		std::cout << "CGI vALIDATE client respone: " << retStr << std::endl;
-		// _socket.write_buffer.assign(retStr.begin(), retStr.end());
-		_socket.toSend->write_buffer.assign(retStr.begin(), retStr.end());
+		std::string headers = response.str();
+		
+		// Handle binary data properly - don't convert to string
+		_socket.toSend->write_buffer.assign(headers.begin(), headers.end());
+		_socket.toSend->write_buffer.insert(_socket.toSend->write_buffer.end(), 
+											cgiBuffer.begin(), cgiBuffer.end());
 		_socket.read_buffer.clear();
+		
+		std::cout << "CGI response built: " << headers.size() << " header bytes + " 
+		          << cgiBuffer.size() << " body bytes = " 
+		          << _socket.toSend->write_buffer.size() << " total bytes" << std::endl;
 	
 
 		// std::cout << "CGI response: " << _socket.write_buffer << std::endl;
