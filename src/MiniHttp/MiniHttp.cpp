@@ -11,68 +11,17 @@
 
 MiniHttp::MiniHttp(Socket& socket, WebServer& server) : _socket(socket), _server(server), _request(socket) {}
 
-// MiniHttp::MiniHttp(int socket_fd, WebServer& server)
-// 	: _socket_fd(socket_fd), _server(server) {
-// 	// Initialize the MiniHttp with the socket file descriptor and server reference
-// }
+MiniHttp::~MiniHttp() {}
 
-MiniHttp::~MiniHttp() {
-	// Destructor implementation
-}
-
-// void MiniHttp::sendResponse(MiniHttpResponse& response) {
-// 	try {
-// 		std::string httpResponse = response.buildResponse();
-//
-// 		// here need to refactor to use passed to socket buffer
-//
-// 		// ssize_t totalSent = 0;
-// 		// ssize_t responseLength = httpResponse.length();
-// 		//
-// 		// while (totalSent < responseLength) {
-// 		// 	ssize_t sent = send(_socket.fd, httpResponse.c_str() + totalSent, 
-// 		// 					   responseLength - totalSent, 0);
-// 		// 	if (sent <= 0) {
-// 		// 		throw std::runtime_error("Failed to send response to client");
-// 		// 	}
-// 		// 	totalSent += sent;
-// 		// }
-//
-// 		std::cout << "Response sent successfully (" << totalSent << " bytes)" << std::endl;
-// 	} catch (const std::exception& e) {
-// 		std::cerr << "Error sending response: " << e.what() << std::endl;
-// 	}
-// }
-
-bool MiniHttp::run() {
-	// MiniHttpRequest request(_socket);
-	if (!_request.parseRequest()) {
-		// maybe socket also need to edge cases where socket reading failed.
-		// Since this just going to return back to main loop if it doesnt have enough request data
-		return false;
-	}
-	// std::cout << "Parsed HTTP request successfully." << std::endl;
-
-	MiniHttpResponse response(_server, _request, _socket);
-	response.parseResponse();
-	// std::cout << "Parsed HTTP response successfully." << std::endl;
-
-	// refactor into the write buffer of the socket
-	// sendResponse(response);
-	// _socket.write_buffer.clear();
-	_socket.write_buffer = response.buildResponse();
-
-	_request.clearRequest();
-
-	return true;
-}
+// ===================================================================
+// CGI HELPER
+// ===================================================================
 
 std::string MiniHttp::getCgiHeader(std::vector<char>& cgiBuffer) {
 	std::string header;
-	// std::string::size_type s = cgiBuffer.find("\r\n\r\n");
 	std::string::size_type s = ft_vectorFind(cgiBuffer, M_CRLF2);
 	if (s == std::string::npos) {
-		// Try with just \n\n for Unix-style line endings
+		// Try with just \n\n for Unix-style line endings just safety
 		s = ft_vectorFind(cgiBuffer, "\n\n");
 		if (s == std::string::npos)
 			return header;
@@ -85,6 +34,10 @@ std::string MiniHttp::getCgiHeader(std::vector<char>& cgiBuffer) {
 	return header;
 }
 
+// ===================================================================
+// COOKIE HANDLING
+// ===================================================================
+
 void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 	Cookie* cookie = NULL;
 
@@ -92,10 +45,10 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 	size_t cookiePos = cgiHeaders.find("cgi_cookie:");
 	if (cookiePos != std::string::npos) {
 		size_t lineEnd = cgiHeaders.find("\r\n", cookiePos);
-		size_t lineEndLength = 2; // for \r\n
+		size_t lineEndLength = 2;
 		if (lineEnd == std::string::npos) {
 			lineEnd = cgiHeaders.find("\n", cookiePos);
-			lineEndLength = 1; // for \n only
+			lineEndLength = 1;
 		}
 		if (lineEnd != std::string::npos) {
 			std::string cookieLine = cgiHeaders.substr(cookiePos + 11, lineEnd - (cookiePos + 11));
@@ -169,30 +122,43 @@ void MiniHttp::parseCgiCookie(std::string& cgiHeaders) {
 
 
 		}
-		// remove cgi_cookie header from cgiHeaders (use correct line ending length)
 		cgiHeaders.erase(cookiePos, lineEnd - cookiePos + lineEndLength);
 	}
 }
 
+// ===================================================================
+// MAIN PROCESSING METHOD
+// ===================================================================
+
+bool MiniHttp::run() {
+	if (!_request.parseRequest()) {
+		return false;
+	}
+
+	MiniHttpResponse response(_server, _request, _socket);
+	response.parseResponse();
+
+	_socket.write_buffer = response.buildResponse();
+
+	_request.clearRequest();
+
+	return true;
+}
+
 bool MiniHttp::validateCGI() {
-		std::cout << "Enter ..." << std::endl;
 	if (_socket.read_buffer.empty()) {
 		return false;
 	}
 	
 	try {
-		std::cout << "Validating CGI output..." << std::endl;
 		std::vector<char> cgiBuffer = _socket.read_buffer;
 		std::string cgiHeaders = getCgiHeader(cgiBuffer);
 
 		if (cgiHeaders.empty()) {
 			return false;
 		}
-		std::cout << "Cgi headers donessss" << std::endl;
+
 		parseCgiCookie(cgiHeaders);
-
-
-
 
 		std::ostringstream response;
 		response << "HTTP/1.1 200 OK\r\n";
@@ -215,13 +181,11 @@ bool MiniHttp::validateCGI() {
 			response << "Content-Length: " << cgiBuffer.size() << "\r\n";
 		}
 
-		// shouldnt close connection here?
-		// response << "Connection: close\r\n" << "\r\n" << cgiBuffer;
 		response << "\r\n";
 		
 		std::string headers = response.str();
 		
-		// Handle binary data properly - don't convert to string
+		// Handle binary data properly not convert to string
 		_socket.toSend->write_buffer.assign(headers.begin(), headers.end());
 		_socket.toSend->write_buffer.insert(_socket.toSend->write_buffer.end(), 
 											cgiBuffer.begin(), cgiBuffer.end());
@@ -230,16 +194,11 @@ bool MiniHttp::validateCGI() {
 		std::cout << "CGI response built: " << headers.size() << " header bytes + " 
 		          << cgiBuffer.size() << " body bytes = " 
 		          << _socket.toSend->write_buffer.size() << " total bytes" << std::endl;
-	
-
-		// std::cout << "CGI response: " << _socket.write_buffer << std::endl;
-		//
-		// std::cout << "CGI response built successfully" << std::endl;
 		return true;
 		
 	} catch (const std::exception& e) {
 		std::cerr << "Error processing CGI output: " << e.what() << std::endl;
-		// dont exit just return eerror code	
+		// dont exit just return eerror code as fallbakk
 		std::string errStr = "HTTP/1.1 500 Internal Server Error\r\n"
 					   "Content-Type: text/html\r\n"
 					   "Content-Length: 50\r\n"

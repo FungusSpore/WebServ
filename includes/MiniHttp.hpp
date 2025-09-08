@@ -11,27 +11,22 @@ struct Socket;
 
 class MiniHttp {
 private:
-	// MiniSocket _socket;
-	// MiniHttpRequest _request;
-	// MiniHttpResponse _response;
-	// MiniHttpRoute _route;
 	Socket& _socket;
-	// int _socket_fd;
 	WebServer& _server;
 	MiniHttpRequest _request;
 
-	// Copy constructor and assignment operator are declared private and not implemented
-	// to prevent copying objects with reference members (C++98 idiom)
+	// Disallow copy and assignment
 	MiniHttp(const MiniHttp& other);
 	MiniHttp& operator=(const MiniHttp& other);
 
-	// void sendResponse(MiniHttpResponse& response);
+	// CGI Helper
 	std::string getCgiHeader(std::vector<char>& cgiBuffer);
+
+	// Cookie Handling
 	void parseCgiCookie(std::string& cgiHeaders);
 
 public:
 	MiniHttp(Socket& socket, WebServer& server);
-	// MiniHttp(int socket_fd, WebServer& server);
 	~MiniHttp();
 
 	bool run();

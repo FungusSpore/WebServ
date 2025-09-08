@@ -32,7 +32,6 @@ ServerKey& MiniHttpResponse::createServerKey() {
 	}
 
 	if (hostHeader.empty()) {
-		// should it throw an error or return a default key?
 		throw std::runtime_error("Host header is missing in the request");
 	}
 
@@ -386,7 +385,6 @@ std::vector<std::string> MiniHttpResponse::createCgiEnv()
 	envVars.push_back("REMOTE_PORT=" + _socket.getServerKey()._port);
 	envVars.push_back("REMOTE_HOST=" + _socket.getServerKey()._serverName);
 	envVars.push_back("CGI_COOKIE=" + (_cookie ? "session_id=" + _cookie->getValue() + "; user_id=" + _cookie->getContent() : "session_id= ; user_id=GUEST"));
-	// std::cout << "User ID for CGI: " << (_cookie ? _cookie->getContent() : "GUEST") << std::endl;
 
 	if (_request.getMethod() == "POST") {
 		std::multimap<std::string, std::string>::const_iterator contentTypeIt = headers.find("Content-Type");
@@ -529,6 +527,10 @@ void MiniHttpResponse::handleAutoIndex()
 			}
 		}
 
+		if (!_locationBlock->getIsAutoindexOn()) {
+			return setParseErrorResponse(403);
+		}
+
 		_body.clear();
 		if (_request.getMethod() != "HEAD") {
 			_body = buildAutoIndexBody(fsPath);
@@ -590,12 +592,6 @@ void MiniHttpResponse::handleStaticFile()
 	handleFileRequest(fsPath);
 }
 
-void MiniHttpResponse::handleProxyPass()
-{
-	// Proxy pass implementation placeholder
-	setParseErrorResponse(501); // Not Implemented
-}
-
 // ===================================================================
 // Cookie
 // ===================================================================
@@ -651,7 +647,6 @@ void MiniHttpResponse::parseCookie() {
 		}
 		// build Set-Cookie header
 		std::string cookieHeader = "session_id=" + _cookie->getValue() + "; Path=/; HttpOnly";
-		// std::cout << "Set-Cookie header to be set: " << cookieHeader << std::endl;
 		_headers.push_back(std::make_pair("Set-Cookie", cookieHeader));
 		return;
 	}
@@ -660,7 +655,6 @@ void MiniHttpResponse::parseCookie() {
 
 	// build Set-Cookie header
 	std::string cookieHeader = "session_id=" + _cookie->getValue() + "; Path=/; HttpOnly";
-	// std::cout << "Set-Cookie header to be set: " << cookieHeader << std::endl;
 	_headers.push_back(std::make_pair("Set-Cookie", cookieHeader));
 }
 
@@ -673,16 +667,12 @@ void MiniHttpResponse::parseResponse()
 {
 	_statusCode = _request.getErrorCode();
 	if (_statusCode > 0 && _statusCode != 200) {
-		// std::cout << "Request error detected with status code: " << _statusCode << std::endl;
 		return parseErrorResponse();
 	}
 
-	// std::cout << "validating server configuration..." << std::endl;
 	if (!validateServerConf()) {
 		return parseErrorResponse();
 	}
-
-	// std::cout << "validating header size..." << std::endl;
 
 	if (!validateHeaderSize()) {
 		return setParseErrorResponse(431);
@@ -692,12 +682,9 @@ void MiniHttpResponse::parseResponse()
 		return setParseErrorResponse(413);
 	}
 
-	// std::cout << "parsing cookies..." << std::endl;
 	parseCookie();
-	// std::cout << "Cookie parsed: " << (_cookie ? _cookie->getValue() : "None") << std::endl;
-	
+
 	// Route to appropriate handler based on location mode
-	std::cout << "Handling location mode: " << _locationBlock->getLocationMode() << std::endl;
 	switch (_locationBlock->getLocationMode()) {
 		case REDIRECTION:
 			handleRedirection();
@@ -710,9 +697,6 @@ void MiniHttpResponse::parseResponse()
 			break;
 		case STATIC:
 			handleStaticFile();
-			break;
-		case PROXYPASS:
-			handleProxyPass();
 			break;
 		default:
 			setParseErrorResponse(500);
@@ -727,13 +711,13 @@ std::vector<char> MiniHttpResponse::buildResponse()
 {
 	std::ostringstream response;
 	
-	// Debug output
-	std::cout << "\n=== Building Response ===" << std::endl;
-	std::cout << "Status Code: " << _statusCode << std::endl;
-	std::cout << "Status Message: " << _statusMessage << std::endl;
-	std::cout << "Request Method: " << _request.getMethod() << std::endl;
-	std::cout << "Request Path: " << _request.getPath() << std::endl;
-	std::cout << "===End===\n" << std::endl;
+	// // Debug output
+	// std::cout << "\n=== Building Response ===" << std::endl;
+	// std::cout << "Status Code: " << _statusCode << std::endl;
+	// std::cout << "Status Message: " << _statusMessage << std::endl;
+	// std::cout << "Request Method: " << _request.getMethod() << std::endl;
+	// std::cout << "Request Path: " << _request.getPath() << std::endl;
+	// std::cout << "===End===\n" << std::endl;
 
 	// Ensure valid status code and message
 	if (_statusCode < 100 || _statusCode >= 600) {
@@ -747,9 +731,7 @@ std::vector<char> MiniHttpResponse::buildResponse()
 	// Build HTTP response
 	response << "HTTP/1.1 " << _statusCode << " " << _statusMessage << "\r\n";
 
-	// maybe can remove HEAD and just check if body not empty add Content-Length
 	if (_request.getMethod() != "HEAD" && !_body.empty()) {
-		// if its not a HEAD request, append the body do i need to add a Content-Length header?
 		if (!hasHeader("Content-Length")) {
 			_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
 		}
@@ -766,19 +748,6 @@ std::vector<char> MiniHttpResponse::buildResponse()
 		response << "\r\n";
 	}
 
-	// std::cout << "response : " << response.str() << std::endl;
-	
-	// maybe can remove HEAD and just check if body not empty add Content-Length
-	// if (_request.getMethod() != "HEAD" && !_body.empty()) {
-	// 	// if its not a HEAD request, append the body do i need to add a Content-Length header?
-	// 	if (!hasHeader("Content-Length")) {
-	// 		_headers.push_back(std::make_pair("Content-Length", ft_toString(_body.size())));
-	// 	}
-	// 	response << std::string(_body.begin(), _body.end());
-	// }
-	
-	// std::cout << "\n\nDebug Response:\n" << response.str() << "\nsize: " << response.str().size() << "\n\nEnd Debug.\n" << std::endl;
-	// std::cout << "\n\nDebug Response2:\n" << std::string(_socket.write_buffer.begin(), _socket.write_buffer.end()) << "\nsize: " << _socket.write_buffer.size() << "\n\nEnd Debug.\n" << std::endl;
 	std::string retStr(response.str());
 	return std::vector<char>(retStr.begin(), retStr.end());
 }

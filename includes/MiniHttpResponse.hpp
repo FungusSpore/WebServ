@@ -43,7 +43,6 @@ private:
 	void handleCgi();
 	void handleAutoIndex();
 	void handleStaticFile();
-	void handleProxyPass();
 
 	// === File & Directory Operations ===
 	void loadBody(const std::string& path);
