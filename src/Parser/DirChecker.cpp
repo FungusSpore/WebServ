@@ -30,6 +30,8 @@ static bool validIp(const std::string& string) {
 	if (ip1 < 0 || ip1 > 255 || ip2 < 0 || ip2 > 255 || ip3 < 0 || ip3 > 255
 		|| ip4 < 0 || ip3 > 255 || dot1 != '.' || dot2 != '.' || dot3 != '.')
 		return (false);
+	if (!iss.eof())
+		return (false);
 	return (true);
 }
 
