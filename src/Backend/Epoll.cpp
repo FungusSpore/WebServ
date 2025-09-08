@@ -98,16 +98,23 @@ std::vector<struct epoll_event> Epoll::get_conn_sock(){
 			result.push_back(_events[_idx]);
 			continue ;
 		}
-		conn_sock = accept(sock->fd, NULL, NULL); 
-		if (conn_sock == -1) 
-			throw SystemFailure("Accept has failed");
-		Utils::setnonblocking(conn_sock);
-		ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
-		clientSocket = _clientRegistry.makeSocket(conn_sock, sock->port, _server);
-		clientSocket->loadServerKey(conn_sock); // Load server key on the client socket
-		ev.data.ptr = clientSocket;
-		if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
-			throw SystemFailure("Epoll CTL failed to add listen socket");
+		while(true){
+			conn_sock = accept(sock->fd, NULL, NULL); 
+			if (conn_sock == -1){
+				if (errno == EINTR)
+					continue ;
+				if (errno == EAGAIN || errno == EWOULDBLOCK)
+					break ;
+				throw SystemFailure("Accept has failed");
+			}
+			Utils::setnonblocking(conn_sock);
+			ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
+			clientSocket = _clientRegistry.makeSocket(conn_sock, sock->port, _server);
+			clientSocket->loadServerKey(conn_sock); // Load server key on the client socket
+			ev.data.ptr = clientSocket;
+			if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
+				throw SystemFailure("Epoll CTL failed to add listen socket");
+		}
 	}
 	return (result);
 }
