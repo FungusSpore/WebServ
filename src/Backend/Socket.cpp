@@ -51,11 +51,7 @@ Socket& Socket::operator=(const Socket& other){
 	}
 	return (*this);
 }
-Socket::~Socket(){
-	// close(this->fd);
-	// if (!toSend)
-	// 	delete toSend;
-}
+Socket::~Socket(){}
 
 bool Socket::operator==(const Socket& other) const{
 	if (this->fd == other.fd)
@@ -108,24 +104,11 @@ bool Socket::executeCGI(Epoll& epoll) {
 		}
 		envp.push_back(NULL);
 
-		// for (size_t i = 0; i < envp.size(); ++i) {
-		// 	std::cout << "CGI Env: " << envp[i] << std::endl;
-		// }
-		
 		struct epoll_event inputSocket = CGI::exec(cgiPath.c_str(), &envp[0], epoll, *this);
 		
 		// Send the cgibody to CGI process (for POST requests)
 		std::cout << "CGI BODY" << std::endl;
-		// if (cgiBody.empty()) {
-		// 	epoll.closeSocket(*static_cast<Socket*>(inputSocket.data.ptr));
-		// }
-		// else{
-		// 	// std::cout << std::string(cgiBody.begin(), cgiBody.end()) << std::endl;
-		// 	static_cast<Socket*>(inputSocket.data.ptr)->write_buffer = cgiBody;
-		// 	IO::try_write(epoll, inputSocket);
-		// }
 		if (!cgiBody.empty()){
-			// std::cout << std::string(cgiBody.begin(), cgiBody.end()) << std::endl;
 			static_cast<Socket*>(inputSocket.data.ptr)->write_buffer = cgiBody;
 			std::cout << static_cast<Socket*>(inputSocket.data.ptr)->write_buffer.size() << std::endl;
 			IO::try_write(epoll, inputSocket);

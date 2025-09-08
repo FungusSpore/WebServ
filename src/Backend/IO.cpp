@@ -53,8 +53,6 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 		}
 		if (sock.toSend != NULL){
 			std::cout << "closing write end" << std::endl;
-			// std::cerr << "Server: shutting down CGI socket for fd=" << sock.fd << std::endl;
-			// shutdown(sock.fd, SHUT_WR);
 			epoll.resetSocketTimer(sock);
 			std::cout << "CGI READ BUFFER: " << std::string(sock.read_buffer.begin(), sock.read_buffer.end()) << std::endl;
 			return ;
@@ -81,9 +79,7 @@ int	IO::try_read(Epoll& epoll, struct epoll_event& event){
 		else if (size == -1) // assume EAGAIN
 			return 0;
 		else if (size == 0){
-			// std::cout << "Peer closed write end" << std::endl;
 			if (sock.toSend != NULL){
-			// 	sock.cgiOutputCompleted = true;
 				return 0;
 			}
 			epoll.closeSocket(sock);

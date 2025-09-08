@@ -4,6 +4,8 @@
 #include "Exceptions.hpp"
 #include "SocketRegistry.hpp"
 #include "WebServer.hpp"
+#include "IO.hpp"
+#include "Utils.hpp"
 		
 #include <sys/epoll.h>
 #include <sys/types.h>
@@ -47,6 +49,11 @@ public:
 	Socket* makeClientSocket(int fd, Socket* toSend);
 	Socket* makeClientSocket(int fd, std::string port);
 	void	resetSocketTimer(Socket& other);
+
+	void handle_epollin(Socket* mysock, struct epoll_event& event);
+	void handle_epollout(struct epoll_event& event);
+	void handle_epollhup(Socket* mysock, struct epoll_event& event);
+	void handle_epollerr(Socket* mysock);
 };
 
 #endif

@@ -1,4 +1,4 @@
-NAME = Webserve
+NAME = Webserv
 
 SRC_DIR = src
 INC_DIR = includes

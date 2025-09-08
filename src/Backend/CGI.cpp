@@ -1,7 +1,4 @@
 #include "../../includes/CGI.hpp"
-#include <fstream>
-#include <iostream>
-#include <sstream>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -36,9 +33,6 @@ struct epoll_event CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, So
 		Socket* cgiSock = epoll.makeClientSocket(sv[0], &client);
 		ev.data.ptr = cgiSock;
 		epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_ADD, sv[0], &ev);
-
-		// std::cout << "FD for cgi socket " << sv[0] << std::endl;
-		// std::cout << "FD for client socket " << client.fd << std::endl;
 	}
 	return (ev);
 }

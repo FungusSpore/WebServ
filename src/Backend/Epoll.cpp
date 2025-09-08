@@ -1,8 +1,7 @@
 #include "../../includes/Epoll.hpp"
-#include "../../includes/Utils.hpp"
-#include "../../includes/WebServer.hpp"
 #include <cerrno>
 #include <cstddef>
+#include <sys/epoll.h>
 
 /// To setup what type of socket is needed
 static void	setupHints(struct addrinfo& hints){
@@ -131,6 +130,82 @@ void Epoll::closeSocket(Socket& other){
 
 void	Epoll::resetSocketTimer(Socket& other){
 	_clientRegistry.resetSocketTimer(other);
+}
+
+//==========================//
+//			EPOLL EVENTS				//
+//==========================//
+
+void Epoll::handle_epollin(Socket* mysock, struct epoll_event& event){
+	if (IO::try_read(*this, event) == -1)
+		return ;
+	if (mysock->toSend != NULL && mysock->validateCGI()){
+		struct epoll_event ev;
+		ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
+		ev.data.ptr = mysock->toSend;
+		IO::try_write(*this, ev);
+		return ;
+	}
+	if (mysock->runHttp())
+		IO::try_write(*this, event);
+	else if (mysock->isCgi && !mysock->executeCGI(*this))
+		IO::try_write(*this, event);
+}
+
+void Epoll::handle_epollout(struct epoll_event& event){
+		IO::try_write(*this, event);
+}
+
+void Epoll::handle_epollhup(Socket* mysock, struct epoll_event& event){
+	handle_epollin(mysock, event);
+	this->closeSocket(*mysock);
+}
+
+void Epoll::handle_epollerr(Socket* mysock){
+	// Get the specific socket error
+	int socket_error = 0;
+	socklen_t len = sizeof(socket_error);
+	int sockfd = mysock->fd;
+	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &socket_error, &len) == 0 && socket_error != 0) {
+			switch (socket_error) {
+					case ECONNRESET:
+							std::cout << "Connection reset by peer";
+							break;
+					case EPIPE:
+							std::cout << "Broken pipe (remote end closed)";
+							break;
+					case ENOBUFS:
+							std::cout << "No buffer space available";
+							break;
+					case ENOMEM:
+							std::cout << "Out of memory";
+							break;
+					case ENETDOWN:
+							std::cout << "Network is down";
+							break;
+					case ENETUNREACH:
+							std::cout << "Network is unreachable";
+							break;
+					case EHOSTUNREACH:
+							std::cout << "Host is unreachable";
+							break;
+					case ETIMEDOUT:
+							std::cout << "Connection timed out";
+							break;
+					case ECONNREFUSED:
+							std::cout << "Connection refused";
+							break;
+					case ENOTCONN:
+							std::cout << "Socket is not connected";
+							break;
+					default:
+							std::cout << strerror(socket_error) << " (errno: " << socket_error << ")";
+							break;
+			}
+	} else
+			std::cout << strerror(errno) << " (errno: " << errno << ")";
+	std::cout << std::endl;
+	this->closeSocket(*mysock);
 }
 
 // #include <iostream>
