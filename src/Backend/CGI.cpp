@@ -1,18 +1,17 @@
 #include "../../includes/CGI.hpp"
-#include <fstream>
-#include <iostream>
-#include <sstream>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
-int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
+struct epoll_event CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 	int sv[2];
-	std::string interpreter;
 	std::vector<char*> argv;
 	struct epoll_event ev;
 
 	argv.push_back(const_cast<char*>(cgi_path));
 	argv.push_back(NULL);
 
-	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0, sv) == -1)
+	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sv) == -1)
 		throw SystemFailure("cgi socketpair failed");
 
 	pid_t pid = fork();
@@ -22,19 +21,20 @@ int CGI::exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client){
 		close(sv[1]);
 		throw SystemFailure("CGI Fork failed");
 	case 0:
-		close(sv[0]);
 		dup2(sv[1], STDOUT_FILENO);
 		dup2(sv[1], STDIN_FILENO);
+		close(sv[0]);
 		close(sv[1]);
 		execve(argv[0], &argv[0], envp); // no need to check return value, it will exit if it fails - compile error 
 		exit(1);
 	default:
 		close(sv[1]);
 		ev.events = EPOLLIN | EPOLLET | EPOLLHUP | EPOLLERR;
-		ev.data.ptr = epoll.makeClientSocket(sv[0], client.fd);
+		Socket* cgiSock = epoll.makeClientSocket(sv[0], &client);
+		ev.data.ptr = cgiSock;
 		epoll_ctl(epoll.get_epollfd(), EPOLL_CTL_ADD, sv[0], &ev);
 	}
-	return (sv[0]);
+	return (ev);
 }
 
 

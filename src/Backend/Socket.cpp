@@ -1,41 +1,46 @@
 #include "../../includes/Socket.hpp"
-#include "MiniHttp.hpp"
-#include "MiniHttpUtils.hpp"
-#include "WebServer.hpp"
+#include "../../includes/MiniHttp.hpp"
+#include "../../includes/MiniHttpUtils.hpp"
+#include "../../includes/WebServer.hpp"
+#include "../../includes/CGI.hpp"
 #include <ctime>
+#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <cstring>
 #include <iostream>
-#include "CGI.hpp"
 
 Socket::Socket(int fd, std::string port, WebServer& server): \
-	fd(fd), clientFd(-1), is_alive(true), port(port), read_buffer(), write_buffer(), isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", port, ""), _ProphetHttp(*this, server) {
+	fd(fd), toSend(NULL), is_alive(true), port(port), read_buffer(), write_buffer(),\
+	isCgi(false), cgiOutputCompleted(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", port, ""), _ProphetHttp(*this, server) {
 	this->read_buffer.reserve(READ_BUFFER_SIZE);
-	this->write_buffer.reserve(WRITE_BUFFER_SIZE);
-	this->last_active = time(NULL);
+	this->write_buffer.reserve(WRITE_BUFFER_SIZE); this->last_active = time(NULL);
 }
 
-Socket::Socket(int fd, int clientFd, WebServer& server): \
-	fd(fd), clientFd(clientFd), is_alive(true), port(""), read_buffer(), write_buffer(), isCgi(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", "", ""), _ProphetHttp(*this, server) {
+Socket::Socket(int fd, Socket* toSend, WebServer& server): \
+	fd(fd), toSend(toSend), is_alive(true), port(""), read_buffer(), write_buffer(),\
+	isCgi(false), cgiOutputCompleted(false), cgiPath(""), cgiEnvs(), cgiBody(), keepAlive(true), _serverKey("", "", ""), _ProphetHttp(*this, server) {
 	this->read_buffer.reserve(READ_BUFFER_SIZE);
 	this->write_buffer.reserve(WRITE_BUFFER_SIZE);
 	this->last_active = time(NULL);
 }
 
 Socket::Socket(const Socket& other): \
-	fd(other.fd), clientFd(other.clientFd), is_alive(true), port(other.port), read_buffer(other.read_buffer), write_buffer(other.write_buffer), isCgi(other.isCgi), cgiPath(other.cgiPath), cgiEnvs(other.cgiEnvs), cgiBody(other.cgiBody), keepAlive(other.keepAlive), _serverKey(other._serverKey), _ProphetHttp(*this, other._ProphetHttp.getServer()) {}
+	fd(other.fd), toSend(other.toSend), is_alive(true), port(other.port), read_buffer(other.read_buffer), \
+	write_buffer(other.write_buffer), isCgi(other.isCgi), cgiOutputCompleted(other.cgiOutputCompleted), cgiPath(other.cgiPath), cgiEnvs(other.cgiEnvs), \
+	cgiBody(other.cgiBody), keepAlive(other.keepAlive), _serverKey(other._serverKey), _ProphetHttp(*this, other._ProphetHttp.getServer()) {}
 
 Socket& Socket::operator=(const Socket& other){
-	if (this != &other) {
+	if (this != &other) { 
 		this->fd = other.fd;
-		this->clientFd = other.clientFd;
+		this->toSend = other.toSend;
 		this->is_alive = other.is_alive;
 		this->last_active = other.last_active;
 		this->port = other.port;
 		this->read_buffer = other.read_buffer;
 		this->write_buffer = other.write_buffer;
 		this->isCgi = other.isCgi;
+		this->cgiOutputCompleted = other.cgiOutputCompleted;
 		this->cgiPath = other.cgiPath;
 		this->cgiEnvs = other.cgiEnvs;
 		this->cgiBody = other.cgiBody;
@@ -46,11 +51,7 @@ Socket& Socket::operator=(const Socket& other){
 	}
 	return (*this);
 }
-Socket::~Socket(){
-	// close(this->fd);
-	// if (!toSend)
-	// 	delete toSend;
-}
+Socket::~Socket(){}
 
 bool Socket::operator==(const Socket& other) const{
 	if (this->fd == other.fd)
@@ -98,28 +99,25 @@ bool Socket::executeCGI(Epoll& epoll) {
 	try {
 		std::vector<char*> envp;
 		for (size_t i = 0; i < cgiEnvs.size(); ++i) {
-			// std::cout << cgiEnvs[i] << std::endl;
+			std::cout << cgiEnvs[i] << std::endl;
 			envp.push_back(const_cast<char*>(cgiEnvs[i].c_str()));
 		}
 		envp.push_back(NULL);
 
-		// for (size_t i = 0; i < envp.size(); ++i) {
-		// 	std::cout << "CGI Env: " << envp[i] << std::endl;
-		// }
-		
-		int cgiFd = CGI::exec(cgiPath.c_str(), &envp[0], epoll, *this);
+		struct epoll_event inputSocket = CGI::exec(cgiPath.c_str(), &envp[0], epoll, *this);
 		
 		// Send the cgibody to CGI process (for POST requests)
-		// std::cout << "CGI BODY" << std::endl;
-		if (!cgiBody.empty()) {
-			std::cout << std::string(cgiBody.begin(), cgiBody.end()) << std::endl;
-			ssize_t written = write(cgiFd, cgiBody.data(), cgiBody.size());
-			if (written == -1) {
-				std::cerr << "Failed to write request body to CGI process" << std::endl;
-			} else if (written < static_cast<ssize_t>(cgiBody.size())) {
-				std::cerr << "Partial write to CGI process: " << written << "/" << cgiBody.size() << std::endl;
-			}
+		std::cout << "CGI BODY" << std::endl;
+		if (!cgiBody.empty()){
+			static_cast<Socket*>(inputSocket.data.ptr)->write_buffer = cgiBody;
+			std::cout << static_cast<Socket*>(inputSocket.data.ptr)->write_buffer.size() << std::endl;
+			IO::try_write(epoll, inputSocket);
 		}
+		else {
+			std::cerr << "Server: shutting down CGI socket for fd=" << static_cast<Socket*>(inputSocket.data.ptr)->fd << std::endl;
+			shutdown(static_cast<Socket*>(inputSocket.data.ptr)->fd, SHUT_WR);
+		}
+		
 		
 		isCgi = false;
 		read_buffer.clear();

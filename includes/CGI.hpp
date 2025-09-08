@@ -19,7 +19,7 @@ private:
 	CGI();
 	~CGI();
 public:
-	static int exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client);
+	static struct epoll_event exec(const char *cgi_path, char **envp, Epoll& epoll, Socket& client);
 	static std::string extractHeader(std::string& read_buffer);
 };
 

@@ -1,10 +1,6 @@
-#include <iostream>
-#include <vector>
 #include <signal.h>
-#include "Epoll.hpp"
-#include "Exceptions.hpp"
-#include "MiniHttp.hpp"
-#include "IO.hpp"
+#include "../includes/Epoll.hpp"
+#include "../includes/MiniHttp.hpp"
 
 volatile int g_signal = 0;
 
@@ -22,63 +18,43 @@ void initSignalHandler() {
 	sa.sa_flags = 0;
 	if (sigaction(SIGINT, &sa, NULL) == -1) {
 		std::cerr << "Error setting up signal handler" << std::endl;
-		exit(1);
-	}
-}
+		exit(1); } }
 
 int main(int ac, char **av) {
 	if (ac != 2) {
 		std::cerr << "Usage: " << av[0] << " <path/to/server.conf>" << std::endl;
 		return 1;
 	}
-
-
 	initSignalHandler();
+
 	try {
 		WebServer ProphetServer(av[1]);
-
 		Epoll epoll(ProphetServer.getPorts(), ProphetServer);
-
 		std::cout << "WebServer started. Press Ctrl+C to shut down." << std::endl;
 
 		while (!g_signal){
 			std::vector<struct epoll_event> myevents = epoll.get_conn_sock();
 			for (size_t i = 0; i < myevents.size(); i++){
+				std::cout << "New Event" << std::endl;
 				Socket *mysock = static_cast<Socket *>(myevents.at(i).data.ptr);
 				uint32_t events = myevents.at(i).events;
-				if (events & EPOLLHUP){
-					std::cout << "EPOLLHUP" << std::endl;
-					epoll.closeSocket(*mysock);
-					continue ;
+				if (events & EPOLLERR) {
+					std::cout << "EPOLLERR on socket " << mysock->fd << std::endl;
+					epoll.handle_epollerr(mysock);
+					continue;
 				}
-				if (events & EPOLLERR){
-					std::cout << "EPOLLERR" << std::endl;
-					epoll.closeSocket(*mysock);
-					continue ;
-				}
-
 				if (events & EPOLLIN){
-					std::cout << "EPOLLIN" << std::endl;
-					// act like process
-					if (IO::try_read(epoll, myevents.at(i)) != -1){
-						// need to detect if this is a cgi response to continue
-						if (mysock->clientFd != -1) {
-							if (mysock->validateCGI())
-								IO::try_write(epoll, myevents.at(i));
-						}
-						else {
-							if (mysock->runHttp()) 
-								IO::try_write(epoll, myevents.at(i));
-							else if (mysock->isCgi && !mysock->executeCGI(epoll)) {
-								IO::try_write(epoll, myevents.at(i));
-							}
-						}
-					}
+					std::cout << "EPOLLIN on socket " << mysock->fd << std::endl;;
+					epoll.handle_epollin(mysock, myevents.at(i));
 				}
-
 				if (events & EPOLLOUT){
-					std::cout << "EPOLLOUT" << std::endl;
-					IO::try_write(epoll, myevents.at(i));
+					std::cout << "EPOLLOUT on socket " << mysock->fd << std::endl;
+					epoll.handle_epollout(myevents.at(i));
+				}
+				if (events & EPOLLHUP){
+					std::cout << "EPOLLHUP on socket " << mysock->fd << std::endl;
+					epoll.handle_epollhup(mysock, myevents.at(i));
+					continue ;
 				}
 			}
 		}
@@ -88,8 +64,7 @@ int main(int ac, char **av) {
 		std::cout << "All sockets closed. Ports should be available immediately." << std::endl;
 
 	} catch (std::exception& e) {
-		std::cerr << e.what() << std::endl;
-
+		std::cerr << "Error" << e.what() << std::endl;
 	}
 
 	return 0;

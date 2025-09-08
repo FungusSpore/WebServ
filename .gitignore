@@ -5,6 +5,9 @@ build/
 *.a
 *.so
 .cache/
+output
+Webserve
+_pycache__/
 
 # MiniSocket gitignore
 src/MiniHttpRequest/include/MiniSocket.hpp

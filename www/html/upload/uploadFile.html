@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>📤 File Upload - Prophet Web Server</title>
   
@@ -101,7 +105,7 @@
       <span class="highlight">Drag & Drop Supported</span>
     </div>
 
-    <form action="/cgi-bin/uploadFiles.py" method="POST" enctype="multipart/form-data" id="upload-form">
+    <form action="/cgi-bin/uploadFilesMy.py" method="POST" enctype="multipart/form-data" id="upload-form">
       <div class="upload-area" id="upload-area">
         <div class="upload-icons">
           <i class="fas fa-file-image"></i>
@@ -109,9 +113,9 @@
           <i class="fas fa-file-pdf"></i>
         </div>
         
-        <input type="file" name="file" id="file-upload" hidden multiple>
+        <input type="file" name="file" id="file-upload" hidden>
         
-        <h3>Drop files here to upload</h3>
+        <h3>Drop a file here to upload</h3>
         <p>or <a href="#" id="file-browser" class="highlight">click to browse</a> your computer</p>
         
         <div class="mt-2">
@@ -140,8 +144,7 @@
     <div class="card mt-3">
       <h3>💡 Upload Tips</h3>
       <ul class="feature-list">
-        <li>📁 Multiple files can be selected at once</li>
-        <li>🖱️ Drag and drop files directly onto the upload area</li>
+        <li>️ Drag and drop a file directly onto the upload area</li>
         <li>📏 Check server configuration for file size limits</li>
         <li>🔒 Files are processed securely through CGI</li>
       </ul>

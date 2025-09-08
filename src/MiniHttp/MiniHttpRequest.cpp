@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <exception>
 #include <iostream>
+#include <iterator>
+#include <ostream>
 #include <unistd.h>
 #include <cstring>
 #include <sys/socket.h>
@@ -72,16 +74,27 @@ void MiniHttpRequest::clearRequest() {
 }
 
 bool MiniHttpRequest::loadHeader() {
+	std::cout << "Finding delimeter....." << std::endl;
 	if (ft_vectorFind(_buffer, "\r\n\r\n") != std::string::npos) {
 		return true;
 	}
+	// std::cout << "Buffer content :" << std::string(_buffer.begin(), _buffer.end()) << std::endl;
+	// std::cout << "Socket content :" << std::string(_socket.read_buffer.begin(), _socket.read_buffer.end()) << std::endl;
+	//
+	// if (ft_vectorFind(_socket.read_buffer, M_CRLF2) == std::string::npos)
+	// 	std::cout << "Found M_CRLF2" << std::endl;
+	// if (ft_vectorFind(_socket.read_buffer, "\n\n") == std::string::npos)
+	// 	std::cout << "Found linux" << std::endl;
 
+	std::cout << "Finding delimeter Again....." << std::endl;
 	if (ft_vectorFind(_socket.read_buffer, M_CRLF2) == std::string::npos) {
+		std::cout << "insert rest into buffer haven't found header....." << std::endl;
 		_buffer.insert(_buffer.end(), _socket.read_buffer.begin(), _socket.read_buffer.end());
 		_socket.read_buffer.clear();
 		return false;
 	}
-
+	
+	std::cout << "Append rest of content to http buffer found header...." << std::endl;
 	_buffer.insert(_buffer.end(), _socket.read_buffer.begin(), _socket.read_buffer.end());
 	_socket.read_buffer.clear();
 	return true;
@@ -244,6 +257,9 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 	// if (pos == std::string::npos) // dont really need this line because header is already checked
 	// 	throw std::runtime_error("Invalid HTTP request format: no body found");
 	// std::string temp_body = _buffer.substr(pos + 4);
+	
+	_buffer.insert(_buffer.end(),_socket.read_buffer.begin(),_socket.read_buffer.end());
+	_socket.read_buffer.clear();
 
 	if (isChunked) {
 		while (true) {
@@ -275,28 +291,15 @@ bool MiniHttpRequest::loadBody(bool isChunked, long long contentLength) {
 			_buffer.erase(_buffer.begin(), _buffer.begin() + pos + 2 + chunkSize + 2);
 		}
 	} else if (contentLength > 0) {
+		size_t toCopy = std::min(static_cast<size_t>(contentLength - _body.size()), _buffer.size());
+		_body.insert(_body.end(), _buffer.begin(), _buffer.begin() + toCopy);
+		_buffer.erase(_buffer.begin(), _buffer.begin() + toCopy);
+
 		if (_body.size() < static_cast<std::size_t>(contentLength)) {
-			long long curSize = _body.size() + _buffer.size();
-			if (curSize < contentLength) {
-				// _body.append(_buffer);
-				// _buffer.erase();
-				_body.insert(_body.end(), _buffer.begin(), _buffer.end());
-				_buffer.clear();
-			} else {
-				// _body.append(_buffer.substr(0, contentLength - _body.size()));
-				// _buffer.erase(0, contentLength - _body.size());
-				_body.insert(_body.end(), _buffer.begin(), _buffer.begin() + (contentLength - _body.size()));
-				_buffer.erase(_buffer.begin(), _buffer.begin() + (contentLength - _body.size()));
-			}
-		}
-		if (_body.size() < static_cast<std::size_t>(contentLength)) {
-			// _isErrorCode = 400;
-			// throw std::runtime_error("Incomplete body received: expected " + ft_toString(contentLength) + " bytes, got " + ft_toString(_body.size()) + " bytes");
+			// std::cout << "false body size : " << _body.size() << " contentLength: " << contentLength << std::endl;
+			// std::cout << "false buffer size : " << _buffer.size() << std::endl;
+			// std::cout << "false socket size : " << _socket.read_buffer.size() << std::endl;
 			return false;
-		}
-		if (!_socket.keepAlive && !_buffer.empty()) {
-			_isErrorCode = 400;
-			throw std::runtime_error("Unexpected data after body: " + std::string(_buffer.begin(), _buffer.end()));
 		}
 	}
 	else {
@@ -316,22 +319,25 @@ bool MiniHttpRequest::parseRequest() {
 
 	try {
 		if (!_isHeaderLoaded) {
-			// std::cout << "Loading HTTP header..." << std::endl;
+			std::cout << "Loading HTTP header..." << std::endl;
 			if (!loadHeader())
 				return false;
-			// std::cout << "HTTP header loaded." << std::endl;
+			std::cout << "HTTP header loaded." << std::endl;
 			// std::cout << "\n_buffer: " << _buffer << std::endl;
 			parseHeader();
-			// std::cout << "Parsed HTTP header." << std::endl;
+			std::cout << "Parsed HTTP header." << std::endl;
 			// shouldnt throw but should return error response
 			_isHeaderLoaded = true;
 		}
 
 		_socket.keepAlive = !(getHeaderValue("Connection") == "close");
 		
+		std::cout << "Getting Body Type..." << std::endl;
 		getBodyType(isChunked, contentLength);
+		std::cout << "Loading Body..." << std::endl;
 		if (!loadBody(isChunked, contentLength))
 			return false;
+		std::cout << "Done loading body.." << std::endl;
 
 	} catch (const std::exception& e) {
 		std::cout << "Error parsing HTTP request: " << e.what() << std::endl;
@@ -345,7 +351,13 @@ bool MiniHttpRequest::parseRequest() {
 	std::cout << "Method: " << _method << std::endl;
 	std::cout << "Path: " << _path << std::endl;
 	std::cout << "Version: " << _version << std::endl;
-	std::cout << "Body: " << std::string(_body.begin(), _body.end()) << std::endl;
+	std::cout << "Headers:" << std::endl;
+	for (std::multimap<std::string, std::string>::const_iterator it = _headers.begin();
+		 it != _headers.end(); ++it) {
+		std::cout << it->first << ": " << it->second << std::endl;
+	}
+	std::cout << "Body size: " << _body.size() << std::endl;
+	// std::cout << "Body: " << std::string(_body.begin(), _body.end()) << std::endl;
 	std::cout << "===End===\n" << std::endl;
 
 	return true;

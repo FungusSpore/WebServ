@@ -4,6 +4,8 @@
 #include "Exceptions.hpp"
 #include "SocketRegistry.hpp"
 #include "WebServer.hpp"
+#include "IO.hpp"
+#include "Utils.hpp"
 		
 #include <sys/epoll.h>
 #include <sys/types.h>
@@ -21,7 +23,8 @@
 #define MAX_EVENTS 10
 #define EPOLL_TIMEOUT 5
 #define LISTEN_BACKLOG 128
-#define READ_BUFFER 2048
+#define KB 1024
+#define READ_BUFFER 64 * KB
 
 
 class Epoll{
@@ -43,8 +46,14 @@ public:
 	std::vector<struct epoll_event> get_conn_sock();
 	int get_epollfd() const;
 	void closeSocket(Socket& other);
-	Socket* makeClientSocket(int fd, int clientFd);
+	Socket* makeClientSocket(int fd, Socket* toSend);
+	Socket* makeClientSocket(int fd, std::string port);
 	void	resetSocketTimer(Socket& other);
+
+	void handle_epollin(Socket* mysock, struct epoll_event& event);
+	void handle_epollout(struct epoll_event& event);
+	void handle_epollhup(Socket* mysock, struct epoll_event& event);
+	void handle_epollerr(Socket* mysock);
 };
 
 #endif

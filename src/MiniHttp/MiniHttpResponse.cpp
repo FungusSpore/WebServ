@@ -223,11 +223,18 @@ void MiniHttpResponse::loadBody(const std::string& path)
 std::string MiniHttpResponse::genfsPath(const Location* locationBlock, const std::string& path)
 {
 	std::string fsPath;
+	
+	// Strip query string from path (everything after '?')
+	std::string cleanPath = path;
+	size_t queryPos = cleanPath.find('?');
+	if (queryPos != std::string::npos) {
+		cleanPath = cleanPath.substr(0, queryPos);
+	}
 
 	if (locationBlock->getPathMode() == ROOT) {
-		fsPath = normalizeUnderRoot(locationBlock->getPath(), path);
+		fsPath = normalizeUnderRoot(locationBlock->getPath(), cleanPath);
 	} else if (locationBlock->getPathMode() == ALIAS) {
-		std::string requestPath = path;
+		std::string requestPath = cleanPath;
 		std::string locationUri = locationBlock->getUriPath();
 		
 		if (requestPath.find(locationUri) == 0) {
@@ -473,6 +480,7 @@ void MiniHttpResponse::handleRedirection()
 void MiniHttpResponse::handleCgi()
 {
 	std::string fsPath = genfsPath(_locationBlock, _request.getPath());
+	std::cout << "CGI fsPath: " << fsPath << std::endl;
 	
 	if (!pathExists(fsPath)) {
 		return setParseErrorResponse(404);
@@ -689,6 +697,7 @@ void MiniHttpResponse::parseResponse()
 	// std::cout << "Cookie parsed: " << (_cookie ? _cookie->getValue() : "None") << std::endl;
 	
 	// Route to appropriate handler based on location mode
+	std::cout << "Handling location mode: " << _locationBlock->getLocationMode() << std::endl;
 	switch (_locationBlock->getLocationMode()) {
 		case REDIRECTION:
 			handleRedirection();
