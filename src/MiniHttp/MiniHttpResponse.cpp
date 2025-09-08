@@ -68,10 +68,7 @@ bool MiniHttpResponse::validateServerConf() {
 }
 
 bool MiniHttpResponse::validateClientMaxBodySize() {
-	std::size_t maxBodySize = _serverBlock->getClientMaxBodySize() > DEFAULT_CLIENT_MAX_BODY_SIZE
-							? _serverBlock->getClientMaxBodySize() : DEFAULT_CLIENT_MAX_BODY_SIZE;
-
-	if (_request.getBody().size() > maxBodySize) {
+	if (static_cast<long>(_request.getBody().size()) > _serverBlock->getClientMaxBodySize()) {
 		return false;
 	}
 	return true;
@@ -520,9 +517,13 @@ void MiniHttpResponse::handleAutoIndex()
 			for (std::vector<std::string>::const_iterator it = indexFiles.begin(); 
 				 it != indexFiles.end(); ++it) {
 				std::string indexPath = joinPath(fsPath, *it);
+				std::cout << "indexPath = " << indexPath << std::endl;
 				if (isFile(indexPath)) {
 					fsPath = indexPath;
-					break;
+					handleFileRequest(fsPath);
+					// std::cout << "fsPath = " << fsPath << std::endl;
+					// break;
+					return ;
 				}
 			}
 		}
