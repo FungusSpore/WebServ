@@ -23,6 +23,7 @@ HttpMethod ft_strToHttpMethod(const std::string& method) {
 	if (method == "GET") return GET;
 	else if (method == "POST") return POST;
 	else if (method == "DELETE") return DELETE;
+	else if (method == "HEAD") return HEAD;
 	else {
 		throw std::invalid_argument("Invalid HTTP method: " + method);
 	}

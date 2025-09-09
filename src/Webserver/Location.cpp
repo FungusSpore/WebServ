@@ -46,6 +46,8 @@ Location::Location(const Server& server, const Node& locationNode) :
 			default							: handleUnknownDir(*it);
 		}
 	}
+	if (_locationMode == DEFAULT_LOCATIONMODE)
+		_locationMode = STATIC;
 }
 
 Location::Location(const Location& other) : 

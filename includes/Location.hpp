@@ -14,9 +14,10 @@ enum LocationMode {
 	DEFAULT_LOCATIONMODE,
 	STATIC,
 	AUTOINDEX,
-	PROXYPASS,
 	REDIRECTION,
-	CGI
+	PROXYPASS,
+	CGI,
+	REMOVE
 };
 
 enum PathMode {

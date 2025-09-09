@@ -35,7 +35,6 @@ int main(int ac, char **av) {
 		while (!g_signal){
 			std::vector<struct epoll_event> myevents = epoll.get_conn_sock();
 			for (size_t i = 0; i < myevents.size(); i++){
-				std::cout << "New Event" << std::endl;
 				Socket *mysock = static_cast<Socket *>(myevents.at(i).data.ptr);
 				uint32_t events = myevents.at(i).events;
 				if (events & EPOLLERR) {

@@ -191,9 +191,6 @@ bool MiniHttp::validateCGI() {
 											cgiBuffer.begin(), cgiBuffer.end());
 		_socket.read_buffer.clear();
 		
-		std::cout << "CGI response built: " << headers.size() << " header bytes + " 
-		          << cgiBuffer.size() << " body bytes = " 
-		          << _socket.toSend->write_buffer.size() << " total bytes" << std::endl;
 		return true;
 		
 	} catch (const std::exception& e) {

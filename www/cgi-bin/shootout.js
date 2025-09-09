@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 // CGI headers - use single \n instead of \r\n
-console.log("Content-Type: text/html; charset=utf-8");
-console.log(); // Empty line to end headers
+// console.log("Content-Type: text/html; charset=utf-8");
+// console.log(); // Empty line to end headers
 
 // HTML + CSS + JS in one file for simplicity
-const html = `<!doctype html>
+const html = `Content-Type: text/html; charset=utf-8\r\n\r\n<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -297,4 +297,5 @@ const html = `<!doctype html>
 </body>
 </html>`;
 
-console.log(html);
+// console.log(html);
+process.stdout.write(html);
