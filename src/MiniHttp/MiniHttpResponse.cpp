@@ -1,4 +1,5 @@
 #include "MiniHttpResponse.hpp"
+#include "Location.hpp"
 #include "MiniHttpUtils.hpp"
 #include "Server.hpp"
 #include "Socket.hpp"
@@ -177,9 +178,6 @@ void MiniHttpResponse::parseDefaultHeader()
 	if (!hasHeader("Content-Type"))
 		defaults.push_back(std::make_pair("Content-Type", "text/html; charset=utf-8"));
 
-	// if (!hasHeader("Content-Length"))
-	// 	defaults.push_back(std::make_pair("Content-Length", "0"));
-
 	if (!_socket.keepAlive) {
 		defaults.push_back(std::make_pair("Connection", "close"));
 	}
@@ -220,7 +218,6 @@ std::string MiniHttpResponse::genfsPath(const Location* locationBlock, const std
 {
 	std::string fsPath;
 	
-	// Strip query string from path (everything after '?')
 	std::string cleanPath = path;
 	size_t queryPos = cleanPath.find('?');
 	if (queryPos != std::string::npos) {
@@ -475,7 +472,6 @@ void MiniHttpResponse::handleRedirection()
 void MiniHttpResponse::handleCgi()
 {
 	std::string fsPath = genfsPath(_locationBlock, _request.getPath());
-	std::cout << "CGI fsPath: " << fsPath << std::endl;
 	
 	if (!pathExists(fsPath)) {
 		return setParseErrorResponse(404);
@@ -517,7 +513,6 @@ void MiniHttpResponse::handleAutoIndex()
 			for (std::vector<std::string>::const_iterator it = indexFiles.begin(); 
 				 it != indexFiles.end(); ++it) {
 				std::string indexPath = joinPath(fsPath, *it);
-				std::cout << "indexPath = " << indexPath << std::endl;
 				if (isFile(indexPath)) {
 					fsPath = indexPath;
 					handleFileRequest(fsPath);
@@ -553,6 +548,10 @@ void MiniHttpResponse::handleAutoIndex()
 
 void MiniHttpResponse::handleStaticFile()
 {
+	if (_request.getMethod() == "DELETE") {
+		return handleDelete();
+	}
+
 	std::string fsPath = genfsPath(_locationBlock, _request.getPath());
 
 	if (!pathExists(fsPath)) {
@@ -591,6 +590,28 @@ void MiniHttpResponse::handleStaticFile()
 	}
 
 	handleFileRequest(fsPath);
+}
+
+void MiniHttpResponse::handleDelete()
+{
+	std::string fsPath = genfsPath(_locationBlock, _request.getPath());
+
+	if (!isFile(fsPath)) {
+		return setParseErrorResponse(404);
+	}
+
+	if (isDirectory(fsPath)) {
+		return setParseErrorResponse(403);
+	}
+
+	if (std::remove(fsPath.c_str()) != 0) {
+		return setParseErrorResponse(500);
+	}
+
+	_statusCode = 204;
+	_statusMessage = getStatusCodeMsg(_statusCode);
+	_body.clear();
+	_headers.push_back(std::make_pair("Content-Length", "0"));
 }
 
 // ===================================================================
@@ -686,6 +707,7 @@ void MiniHttpResponse::parseResponse()
 	parseCookie();
 
 	// Route to appropriate handler based on location mode
+	std::cout << "Location mode: " << _locationBlock->getLocationMode() << std::endl;
 	switch (_locationBlock->getLocationMode()) {
 		case REDIRECTION:
 			handleRedirection();
@@ -699,6 +721,12 @@ void MiniHttpResponse::parseResponse()
 		case STATIC:
 			handleStaticFile();
 			break;
+		// case REMOVE:
+		// 	handleDelete();
+		// 	break;
+		// case DEFAULT_LOCATIONMODE:
+		// 	handleDelete();
+		// 	break;
 		default:
 			setParseErrorResponse(500);
 			break;

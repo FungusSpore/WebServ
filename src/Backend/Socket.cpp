@@ -99,7 +99,6 @@ bool Socket::executeCGI(Epoll& epoll) {
 	try {
 		std::vector<char*> envp;
 		for (size_t i = 0; i < cgiEnvs.size(); ++i) {
-			std::cout << cgiEnvs[i] << std::endl;
 			envp.push_back(const_cast<char*>(cgiEnvs[i].c_str()));
 		}
 		envp.push_back(NULL);
@@ -107,14 +106,11 @@ bool Socket::executeCGI(Epoll& epoll) {
 		struct epoll_event inputSocket = CGI::exec(cgiPath.c_str(), &envp[0], epoll, *this);
 		
 		// Send the cgibody to CGI process (for POST requests)
-		std::cout << "CGI BODY" << std::endl;
 		if (!cgiBody.empty()){
 			static_cast<Socket*>(inputSocket.data.ptr)->write_buffer = cgiBody;
-			std::cout << static_cast<Socket*>(inputSocket.data.ptr)->write_buffer.size() << std::endl;
 			IO::try_write(epoll, inputSocket);
 		}
 		else {
-			std::cerr << "Server: shutting down CGI socket for fd=" << static_cast<Socket*>(inputSocket.data.ptr)->fd << std::endl;
 			shutdown(static_cast<Socket*>(inputSocket.data.ptr)->fd, SHUT_WR);
 		}
 		

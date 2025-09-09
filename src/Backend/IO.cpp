@@ -12,7 +12,6 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 
 	while (!sock.write_buffer.empty()){
 		ssize_t size = send(sock.fd, &sock.write_buffer[0], sock.write_buffer.size(), MSG_NOSIGNAL);
-		std::cout << sock.fd << " WROTE :" << size << std::endl;
 		if (size == -1){
 			if (!(events & EPOLLOUT)){
 				events |= EPOLLOUT;
@@ -35,7 +34,6 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 				sock.write_buffer.resize(sock.write_buffer.size() - size);
 		}
 		else {
-			std::cout << "Write buffer done" << std::endl;
 			sock.write_buffer.clear();
 			break ;
 		}
@@ -52,9 +50,7 @@ void	IO::try_write(Epoll& epoll, struct epoll_event& event){
 			}
 		}
 		if (sock.toSend != NULL){
-			std::cout << "closing write end" << std::endl;
 			epoll.resetSocketTimer(sock);
-			std::cout << "CGI READ BUFFER: " << std::string(sock.read_buffer.begin(), sock.read_buffer.end()) << std::endl;
 			return ;
 		}
 		if (!sock.keepAlive){
@@ -72,7 +68,6 @@ int	IO::try_read(Epoll& epoll, struct epoll_event& event){
 
 	while (true){
 		size = recv(sock.fd, buffer, READ_BUFFER, 0);
-		std::cout << sock.fd << " READ :" << size << std::endl;
 		epoll.resetSocketTimer(sock);
 		if (size > 0)
 			sock.read_buffer.insert(sock.read_buffer.end(), buffer, buffer+size);

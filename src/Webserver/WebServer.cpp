@@ -148,7 +148,6 @@ Cookie* WebServer::addCookie(const std::string& content) {
 	_cookieVector.push_back(newCookie);
 	std::string value = newCookie.getValue();
 
-	std::cout << "Value: " << value << std::endl;
 	return (this->matchCookieValue(value));
 }
 

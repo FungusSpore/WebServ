@@ -10,20 +10,20 @@ import cgi
 import time
 
 def signal_handler(signum, frame):
-    print("CGI: Received signal, exiting", file=sys.stderr)
+    # print("CGI: Received signal, exiting", file=sys.stderr)
     sys.stderr.flush()
     os._exit(1)
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-def log(msg):
-    print(msg, file=sys.stderr)
-    sys.stderr.flush()
-
-log("CGI: Script started")
-for key in ["REQUEST_METHOD", "CONTENT_LENGTH", "CONTENT_TYPE", "QUERY_STRING", "SCRIPT_NAME"]:
-    log(f"  {key} = {os.environ.get(key, '<not set>')}")
+# def log(msg):
+#     print(msg, file=sys.stderr)
+#     sys.stderr.flush()
+#
+# log("CGI: Script started")
+# for key in ["REQUEST_METHOD", "CONTENT_LENGTH", "CONTENT_TYPE", "QUERY_STRING", "SCRIPT_NAME"]:
+#     log(f"  {key} = {os.environ.get(key, '<not set>')}")
 
 # # SEND HEADERS IMMEDIATELY - don't wait for data processing
 # sys.stdout.write("Content-Type: text/html\r\n")
@@ -99,10 +99,10 @@ except ValueError:
     content_length = 0
 content_type = os.environ.get('CONTENT_TYPE', '')
 
-print("Content-Length: {}", content_length, file=sys.stderr)
+# print("Content-Length: {}", content_length, file=sys.stderr)
 
-log(f"CGI: Content-Length: {content_length}")
-log(f"CGI: Content-Type: {content_type}")
+# log(f"CGI: Content-Length: {content_length}")
+# log(f"CGI: Content-Type: {content_type}")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(SCRIPT_DIR, "storage")
@@ -111,7 +111,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(TMP_DIR, exist_ok=True)
 
 # Stream stdin directly to a temp file
-log("CGI: Streaming stdin to temp file")
+# log("CGI: Streaming stdin to temp file")
 temp_path = None
 try:
     # Use local tmp directory instead of system tmp
@@ -131,33 +131,33 @@ try:
                 import select
                 ready, _, _ = select.select([sys.stdin], [], [], 1.0)  # 1 second timeout
                 if not ready:
-                    log("CGI: No data available on stdin after 1 second")
+                    # log("CGI: No data available on stdin after 1 second")
                     break
                     
                 chunk = sys.stdin.buffer.read(chunk_size)
                 # log(f"CGI: Actually read {len(chunk) if chunk else 0} bytes")
             except Exception as e:
-                log(f"CGI: Error reading from stdin: {e}")
+                # log(f"CGI: Error reading from stdin: {e}")
                 break
                 
             if not chunk:
-                log(f"CGI: Unexpected EOF, read {bytes_read} of {content_length}")
+                # log(f"CGI: Unexpected EOF, read {bytes_read} of {content_length}")
                 break
             temp.write(chunk)
             bytes_read += len(chunk)
             
             # Log progress for large files
-            if bytes_read % (1024*1024) == 0:  # Every MB
-                log(f"CGI: Progress: {bytes_read}/{content_length} bytes")
+            # if bytes_read % (1024*1024) == 0:  # Every MB
+                # log(f"CGI: Progress: {bytes_read}/{content_length} bytes")
                 
-    log(f"CGI: Finished reading stdin: {bytes_read} bytes to {temp_path}")
+    # log(f"CGI: Finished reading stdin: {bytes_read} bytes to {temp_path}")
 
     # Parse multipart from temp file
     with open(temp_path, "rb") as f:
         data_stream = io.BytesIO(f.read())
 
 except Exception as e:
-    log(f"CGI: Error during stdin processing: {e}")
+    # log(f"CGI: Error during stdin processing: {e}")
     if temp_path and os.path.exists(temp_path):
         os.unlink(temp_path)
     # Headers already sent, send error HTML
@@ -185,7 +185,7 @@ except Exception as e:
 
 form = cgi.FieldStorage(fp=data_stream, environ=os.environ.copy())
 if "file" not in form or not getattr(form["file"], "filename", None):
-    log("CGI: No file found")
+    # log("CGI: No file found")
     # Headers already sent, send no file HTML
     print(f"""
         <div class="upload-error">
@@ -223,10 +223,10 @@ while os.path.exists(filepath):
     filepath = os.path.join(UPLOAD_DIR, new_filename)
     counter += 1
 
-log(f"CGI: Moving temp file to {filepath}")
+# log(f"CGI: Moving temp file to {filepath}")
 os.rename(temp_path, filepath)
 bytes_written = os.path.getsize(filepath)
-log(f"CGI: File write complete, {bytes_written} bytes total")
+# log(f"CGI: File write complete, {bytes_written} bytes total")
 
 # Helper function to format file size
 def format_file_size(size_bytes):
@@ -327,12 +327,12 @@ print(f"""<!DOCTYPE html>
 </body>
 </html>""")
 
-log("CGI: Script ending")
+# log("CGI: Script ending")
 
 # Cleanup temp file
 if temp_path and os.path.exists(temp_path):
     try:
         os.unlink(temp_path)
-        log("CGI: Temp file cleaned up")
+        # log("CGI: Temp file cleaned up")
     except:
         pass

@@ -43,6 +43,7 @@ private:
 	void handleCgi();
 	void handleAutoIndex();
 	void handleStaticFile();
+	void handleDelete();
 
 	// === File & Directory Operations ===
 	void loadBody(const std::string& path);

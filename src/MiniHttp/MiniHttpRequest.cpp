@@ -272,7 +272,7 @@ bool MiniHttpRequest::parseRequest() {
 			return false;
 
 	} catch (const std::exception& e) {
-		std::cout << "Error parsing HTTP request: " << e.what() << std::endl;
+		std::cerr << "Error parsing HTTP request: " << e.what() << std::endl;
 		if (_isErrorCode > 0)
 			return true;
 	}
